@@ -33,19 +33,12 @@ export function DataPersistenceStatus() {
       };
     }
 
-<<<<<<< HEAD
-    return {
-      label: 'local only',
-      variant: 'destructive' as const,
-      message: 'Your data is only stored in this browser. Log in with Google for secure cloud storage.'
-=======
     // Previously returned { label: 'local only', variant: 'destructive' }
     // Change to a neutral label or hide by returning an empty string so UI does not show red pill.
     return {
       label: '',
       variant: 'outline' as const,
       message: 'Data stored in browser only (not synced). Log in to enable cloud persistence.'
->>>>>>> 07df53a (added ai)
     };
   };
 
@@ -66,15 +59,9 @@ export function DataPersistenceStatus() {
       <Tooltip>
         <TooltipTrigger asChild>
           <div className="flex items-center gap-2 cursor-help">
-<<<<<<< HEAD
-            <Badge variant={status.variant} className="flex items-center gap-1">
-              {getStatusIcon()}
-              <span>{status.label}</span>
-=======
             <Badge variant={status.variant} className={`flex items-center gap-1 ${!status.label ? 'hidden' : ''}`}>
               {getStatusIcon()}
               {status.label && <span>{status.label}</span>}
->>>>>>> 07df53a (added ai)
             </Badge>
           </div>
         </TooltipTrigger>

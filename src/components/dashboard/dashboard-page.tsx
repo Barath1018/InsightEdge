@@ -8,10 +8,7 @@ import {
   Lightbulb,
   Settings,
   TrendingUp,
-<<<<<<< HEAD
   Search,
-=======
->>>>>>> 07df53a (added ai)
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
@@ -33,10 +30,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
-<<<<<<< HEAD
 import { Input } from '@/components/ui/input';
-=======
->>>>>>> 07df53a (added ai)
 import { UserNav } from './user-nav';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { BusinessDataProvider } from '@/contexts/business-data-context';
@@ -197,26 +191,7 @@ export default function DashboardPage({ children }: { children: ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <div className="flex min-h-screen w-full flex-col">
-<<<<<<< HEAD
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-            <SidebarTrigger className="sm:hidden" />
-            <div className="relative flex-1 md:grow-0">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search..."
-                className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-              />
-            </div>
-=======
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-            <SidebarTrigger className="sm:hidden" />
->>>>>>> 07df53a (added ai)
-  </div>
-             <UserNav email={userEmail} name={userName} />
-              </div>
-            </div>
-          </header>
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">m            <SidebarTrigger className="sm:hidden" />i            <div className="relative flex-1 md:grow-0">p              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />n              <Input                 type="search"r                placeholder="Search..."d                className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"              />            </div>            <div className="ml-auto flex items-center gap-4">              <Bell className="h-5 w-5 text-muted-foreground cursor-pointer" />              <div className="hidden md:block">                <UserNav email={userEmail} name={userName} />              </div>            </div>          </header>
           <main className="flex flex-1 flex-col gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
             {children}
           </main>

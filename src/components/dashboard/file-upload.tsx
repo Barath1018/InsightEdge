@@ -1,18 +1,11 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-<<<<<<< HEAD
-import { Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Cloud, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-=======
 import { Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Cloud, AlertTriangle, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
->>>>>>> 07df53a (added ai)
 
 import { Progress } from '@/components/ui/progress';
 import { useBusinessData } from '@/contexts/business-data-context';
@@ -20,11 +13,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { FirebaseStorageService } from '@/services/firebase-storage-service';
 
 interface FileUploadProps {
-<<<<<<< HEAD
-  onFileProcessed: (data: any) => void;
-=======
   onFileProcessed: (data: any, fileData?: string, fileName?: string) => void | Promise<void>;
->>>>>>> 07df53a (added ai)
   onProcessing: (isProcessing: boolean) => void;
 }
 
@@ -95,11 +84,7 @@ export function FileUpload({ onFileProcessed, onProcessing }: FileUploadProps) {
     
     setProcessing(true);
     setProgress(0);
-<<<<<<< HEAD
-    onProcessing(true);
-=======
   onProcessing(true);
->>>>>>> 07df53a (added ai)
     
     try {
       // Simulate processing steps
@@ -134,13 +119,8 @@ export function FileUpload({ onFileProcessed, onProcessing }: FileUploadProps) {
         try {
           const base64Data = e.target?.result as string;
           
-<<<<<<< HEAD
-          // Pass the file data to the context which will handle Firebase upload
-          await onFileProcessed(data);
-=======
           // Pass parsed data and raw file info up so context can persist to Firebase when logged in
           await onFileProcessed(data, base64Data, file.name);
->>>>>>> 07df53a (added ai)
           
           setSuccess(true);
           setUploadingToCloud(false);
@@ -168,11 +148,7 @@ export function FileUpload({ onFileProcessed, onProcessing }: FileUploadProps) {
       setUploadingToCloud(false);
     } finally {
       setProcessing(false);
-<<<<<<< HEAD
-      onProcessing(false);
-=======
   onProcessing(false);
->>>>>>> 07df53a (added ai)
     }
   };
 
@@ -189,11 +165,7 @@ export function FileUpload({ onFileProcessed, onProcessing }: FileUploadProps) {
             data = parseCSV(content);
           } else {
             // For Excel files, we'll simulate parsing
-<<<<<<< HEAD
-            data = parseExcel(content);
-=======
             data = parseExcel(e.target?.result as ArrayBuffer);
->>>>>>> 07df53a (added ai)
           }
           
           resolve(data);
@@ -246,11 +218,6 @@ export function FileUpload({ onFileProcessed, onProcessing }: FileUploadProps) {
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-<<<<<<< HEAD
-        <CardTitle className="flex items-center gap-2">
-          <Upload className="h-5 w-5" />
-          Upload Business Data
-=======
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
@@ -269,12 +236,11 @@ export function FileUpload({ onFileProcessed, onProcessing }: FileUploadProps) {
               ) : (
                 <>
                   <HardDrive className="h-3 w-3 mr-1" />
-                  {/* Removed 'Local only' label intentionally */}
+                  Local only
                 </>
               )}
             </Badge>
           </div>
->>>>>>> 07df53a (added ai)
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -284,9 +250,6 @@ export function FileUpload({ onFileProcessed, onProcessing }: FileUploadProps) {
               <div>
                 <p className="font-medium">Using previously uploaded data</p>
                 <p className="text-sm text-gray-500">
-<<<<<<< HEAD
-                  {fileName && <span className="flex items-center"><Cloud className="h-3 w-3 mr-1" /> {fileName} (stored in cloud)</span>}
-=======
                   {fileName && (
                     <span className="flex items-center">
                       {user ? (
@@ -302,7 +265,6 @@ export function FileUpload({ onFileProcessed, onProcessing }: FileUploadProps) {
                       )}
                     </span>
                   )}
->>>>>>> 07df53a (added ai)
                 </p>
               </div>
               <Button
@@ -346,13 +308,8 @@ export function FileUpload({ onFileProcessed, onProcessing }: FileUploadProps) {
                 <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-4 flex items-start gap-2">
                   <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
                   <div>
-<<<<<<< HEAD
-                    <p className="text-sm font-medium text-amber-800">You are not logged in</p>
-                    <p className="text-xs text-amber-700">Your data will only be stored in this browser. For secure cloud storage, please log in with Google.</p>
-=======
                     <p className="text-sm font-medium text-amber-800">Local storage mode</p>
                     <p className="text-xs text-amber-700">Your data will only be stored in this browser. For secure Firebase cloud storage, please log in with Google.</p>
->>>>>>> 07df53a (added ai)
                   </div>
                 </div>
               )}

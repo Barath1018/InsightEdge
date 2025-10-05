@@ -8,7 +8,10 @@ import {
   Lightbulb,
   Settings,
   TrendingUp,
+<<<<<<< HEAD
   Search,
+=======
+>>>>>>> 07df53a (added ai)
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
@@ -30,7 +33,10 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
+<<<<<<< HEAD
 import { Input } from '@/components/ui/input';
+=======
+>>>>>>> 07df53a (added ai)
 import { UserNav } from './user-nav';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { BusinessDataProvider } from '@/contexts/business-data-context';
@@ -191,6 +197,7 @@ export default function DashboardPage({ children }: { children: ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <div className="flex min-h-screen w-full flex-col">
+<<<<<<< HEAD
           <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
             <SidebarTrigger className="sm:hidden" />
             <div className="relative flex-1 md:grow-0">
@@ -201,10 +208,12 @@ export default function DashboardPage({ children }: { children: ReactNode }) {
                 className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
               />
             </div>
-            <div className="ml-auto flex items-center gap-4">
-              <Bell className="h-5 w-5 text-muted-foreground cursor-pointer" />
-              <div className="hidden md:block">
-                <UserNav email={userEmail} name={userName} />
+=======
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+            <SidebarTrigger className="sm:hidden" />
+>>>>>>> 07df53a (added ai)
+  </div>
+             <UserNav email={userEmail} name={userName} />
               </div>
             </div>
           </header>

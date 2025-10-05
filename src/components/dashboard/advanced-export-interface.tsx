@@ -37,9 +37,13 @@ export function AdvancedExportInterface({ data, onExportComplete }: AdvancedExpo
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const supportedFormats = ExportService.getSupportedFormats();
+<<<<<<< HEAD
   const estimatedFileSize = ExportService.getEstimatedFileSize(exportOptions, data.data?.length || 0);
 
   const handleExport = async () => {
+=======
+                                    const estimatedFileSize = ExportService.getEstimatedFileSize(exportOptions, data.dataSummary?.totalRecords || 0);  const handleExport = async () => {
+>>>>>>> 07df53a (added ai)
     // Validate options
     const validation = ExportService.validateExportOptions(exportOptions);
     if (!validation.valid) {

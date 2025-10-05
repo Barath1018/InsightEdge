@@ -12,6 +12,13 @@ interface BusinessDataContextType {
   isProcessing: boolean;
   fileUrl: string | null;
   fileName: string | null;
+<<<<<<< HEAD
+=======
+  aiMapping?: {
+    columns?: { revenue?: string|null; expenses?: string|null; profit?: string|null; date?: string|null };
+    charts?: { salesTitle?: string; profitTitle?: string };
+  } | null;
+>>>>>>> 07df53a (added ai)
   setBusinessData: (data: BusinessData | null, fileData?: string, fileName?: string) => Promise<void>;
   setAnalyzedMetrics: (metrics: AnalyzedMetrics | null) => void;
   setIsProcessing: (processing: boolean) => void;
@@ -26,6 +33,10 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+<<<<<<< HEAD
+=======
+  const [aiMapping, setAiMapping] = useState<BusinessDataContextType['aiMapping']>(null);
+>>>>>>> 07df53a (added ai)
   const { user } = useAuth();
   
   // Handle file upload
@@ -48,9 +59,15 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
       // Save the data and file information
       await setBusinessData(parsedData, fileData, file.name);
       
+<<<<<<< HEAD
       // Calculate metrics after data is loaded
       const metrics = DataAnalysisService.calculateKPIs(parsedData);
       setAnalyzedMetrics(metrics);
+=======
+  // Calculate metrics after data is loaded (use AI mapping if available)
+  const metrics = await DataAnalysisService.analyzeBusinessData(parsedData, aiMapping || undefined);
+  setAnalyzedMetrics(metrics);
+>>>>>>> 07df53a (added ai)
       
       return { success: true, data: parsedData };
     } catch (error) {
@@ -72,8 +89,14 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
         console.log('Loading data from localStorage...');
         const storedBusinessData = localStorage.getItem('businessData');
         const storedAnalyzedMetrics = localStorage.getItem('analyzedMetrics');
+<<<<<<< HEAD
         const storedFileUrl = localStorage.getItem('fileUrl');
         const storedFileName = localStorage.getItem('fileName');
+=======
+  const storedFileUrl = localStorage.getItem('fileUrl');
+        const storedFileName = localStorage.getItem('fileName');
+  const storedAiMapping = localStorage.getItem('aiMapping');
+>>>>>>> 07df53a (added ai)
         const storedUserId = localStorage.getItem('userAuthId');
 
         // Load data from localStorage if it exists
@@ -95,6 +118,13 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
           setFileName(storedFileName);
         }
 
+<<<<<<< HEAD
+=======
+        if (storedAiMapping) {
+          try { setAiMapping(JSON.parse(storedAiMapping)); } catch {}
+        }
+
+>>>>>>> 07df53a (added ai)
         // Only attempt Firebase loading if user is logged in
         if (user) {
           console.log('User is logged in, checking Firebase for newer data...');
@@ -117,9 +147,18 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
           localStorage.setItem('userAuthId', user.uid);
           
           try {
+<<<<<<< HEAD
             const userFiles = await FirebaseStorageService.getUserBusinessDataFiles();
 
             if (userFiles && userFiles.length > 0) {
+=======
+            if (process.env.NEXT_PUBLIC_SKIP_CLOUD_LISTING === 'true') {
+              console.log('Skipping Firebase listing (NEXT_PUBLIC_SKIP_CLOUD_LISTING=true)');
+            } else {
+              const userFiles = await FirebaseStorageService.getUserBusinessDataFiles();
+
+              if (userFiles && userFiles.length > 0) {
+>>>>>>> 07df53a (added ai)
               // Use the most recent file
               const latestFile = userFiles[userFiles.length - 1];
               setFileUrl(latestFile.url);
@@ -138,9 +177,15 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
                 // Parse the CSV content
                 const parsedData = await parseCSVFile(fileContent);
                 
+<<<<<<< HEAD
                 // Load the data and calculate metrics
                 setBusinessDataState(parsedData);
                 const metrics = DataAnalysisService.calculateKPIs(parsedData);
+=======
+                // Load the data and calculate metrics (use AI mapping if available)
+                setBusinessDataState(parsedData);
+                const metrics = await DataAnalysisService.analyzeBusinessData(parsedData, aiMapping || undefined);
+>>>>>>> 07df53a (added ai)
                 setAnalyzedMetricsState(metrics);
                 
                 // Also save to localStorage for redundancy
@@ -152,8 +197,14 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
                 console.error('Error fetching file content from Firebase:', fetchError);
                 // Keep localStorage data if Firebase fetch fails
               }
+<<<<<<< HEAD
             } else {
               console.log('No files found in Firebase storage for this user');
+=======
+              } else {
+                console.log('No files found in Firebase storage for this user');
+              }
+>>>>>>> 07df53a (added ai)
             }
           } catch (firebaseError) {
             console.error('Error accessing Firebase storage:', firebaseError);
@@ -180,6 +231,33 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
 
     if (data) {
       try {
+<<<<<<< HEAD
+=======
+        // Try Gemini metric inference (best-effort)
+        try {
+          const statusRes = await fetch('/api/ai/status');
+          if (statusRes.ok) {
+            const { enabled } = await statusRes.json();
+            if (enabled) {
+              const resp = await fetch('/api/ai/infer-metrics', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ headers: data.headers, sampleRows: data.data.slice(0, 200) }),
+              });
+              if (resp.ok) {
+                const json = await resp.json();
+                const mapping = {
+                  columns: json.columns || {},
+                  charts: json.charts || {},
+                };
+                setAiMapping(mapping);
+                localStorage.setItem('aiMapping', JSON.stringify(mapping));
+              }
+            }
+          }
+        } catch {}
+
+>>>>>>> 07df53a (added ai)
         // Prioritize Firebase storage if user is logged in and file data is provided
         if (user && fileData && fileName) {
           console.log('User is logged in, saving data to Firebase...');
@@ -264,6 +342,10 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
       // Clear state
       setBusinessDataState(null);
       setAnalyzedMetricsState(null);
+<<<<<<< HEAD
+=======
+  setAiMapping(null);
+>>>>>>> 07df53a (added ai)
       
       if (fileUrl) {
         localStorage.removeItem('fileUrl');
@@ -294,6 +376,10 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
       isProcessing,
       fileUrl,
       fileName,
+<<<<<<< HEAD
+=======
+      aiMapping,
+>>>>>>> 07df53a (added ai)
       setBusinessData,
       setAnalyzedMetrics,
       setIsProcessing,

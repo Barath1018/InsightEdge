@@ -267,6 +267,30 @@ Add a `SECURITY.md` for coordinated disclosure.
 
 ---
 
+<<<<<<< HEAD
+=======
+## 🔑 Enable Gemini AI (Optional)
+
+To power AI Q&A and auto-map chart topics from your uploaded file using Google Gemini:
+
+1. Create a `.env.local` in the repo root and add:
+
+```dotenv
+GOOGLE_AI_API_KEY=your_api_key_here
+# Optional (defaults to gemini-1.5-flash)
+GEMINI_MODEL=gemini-1.5-flash
+```
+
+2. Restart the dev server.
+
+What you get:
+- AI Insights tab will answer questions using Gemini with your dataset as context (cap applied for safety).
+- After file upload, the app calls AI to infer best-fit columns (revenue/expenses/profit/date) and propose concise chart titles.
+- Overview page charts use those titles automatically. Without a key, built-in heuristics are used.
+
+---
+
+>>>>>>> 07df53a (added ai)
 ## 🛠 Scripts (Adjust If Needed)
 
 | Command | Description |

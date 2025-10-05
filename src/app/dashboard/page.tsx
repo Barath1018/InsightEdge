@@ -52,7 +52,11 @@ import { AIInsightsService } from '@/services/ai-insights-service';
 import { useBusinessData } from '@/contexts/business-data-context';
 
 export default function Dashboard() {
+<<<<<<< HEAD
   const { businessData, analyzedMetrics, isProcessing, setBusinessData, setAnalyzedMetrics, setIsProcessing } = useBusinessData();
+=======
+  const { businessData, analyzedMetrics, isProcessing, setBusinessData, setAnalyzedMetrics, setIsProcessing, aiMapping } = useBusinessData();
+>>>>>>> 07df53a (added ai)
   
   // Icon mapping for KPI cards - dynamically updated based on uploaded data
   const getIconMap = () => {
@@ -95,12 +99,21 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [customCharts, setCustomCharts] = useState<any[]>([]);
 
+<<<<<<< HEAD
   const handleFileProcessed = async (data: BusinessData) => {
     setBusinessData(data);
     setIsProcessing(true);
     
     try {
       const metrics = await DataAnalysisService.analyzeBusinessData(data);
+=======
+  const handleFileProcessed = async (data: BusinessData, fileData?: string, uploadedFileName?: string) => {
+    await setBusinessData(data, fileData, uploadedFileName);
+    setIsProcessing(true);
+    
+    try {
+      const metrics = await DataAnalysisService.analyzeBusinessData(data, aiMapping || undefined);
+>>>>>>> 07df53a (added ai)
       setAnalyzedMetrics(metrics);
     } catch (error) {
       console.error('Failed to analyze data:', error);
@@ -241,7 +254,11 @@ export default function Dashboard() {
             <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
               <Card className="rounded-2xl shadow-sm">
                 <CardHeader>
+<<<<<<< HEAD
                   <CardTitle>Monthly Sales Performance</CardTitle>
+=======
+                  <CardTitle>{aiMapping?.charts?.salesTitle || 'Monthly Sales Performance'}</CardTitle>
+>>>>>>> 07df53a (added ai)
                 </CardHeader>
                 <CardContent className="pl-2">
                   <MonthlySalesPerformanceChart data={analyzedMetrics.chartData} />
@@ -249,7 +266,11 @@ export default function Dashboard() {
               </Card>
               <Card className="rounded-2xl shadow-sm">
                 <CardHeader>
+<<<<<<< HEAD
                   <CardTitle>Profit Trend Analysis</CardTitle>
+=======
+                  <CardTitle>{aiMapping?.charts?.profitTitle || 'Profit Trend Analysis'}</CardTitle>
+>>>>>>> 07df53a (added ai)
                 </CardHeader>
                 <CardContent className="pl-2">
                   <ProfitTrendAnalysisChart data={analyzedMetrics.chartData} />

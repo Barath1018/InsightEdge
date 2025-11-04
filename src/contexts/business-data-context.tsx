@@ -12,13 +12,10 @@ interface BusinessDataContextType {
   isProcessing: boolean;
   fileUrl: string | null;
   fileName: string | null;
-<<<<<<< HEAD
-=======
   aiMapping?: {
     columns?: { revenue?: string|null; expenses?: string|null; profit?: string|null; date?: string|null };
     charts?: { salesTitle?: string; profitTitle?: string };
   } | null;
->>>>>>> 07df53a (added ai)
   setBusinessData: (data: BusinessData | null, fileData?: string, fileName?: string) => Promise<void>;
   setAnalyzedMetrics: (metrics: AnalyzedMetrics | null) => void;
   setIsProcessing: (processing: boolean) => void;
@@ -33,10 +30,7 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-<<<<<<< HEAD
-=======
   const [aiMapping, setAiMapping] = useState<BusinessDataContextType['aiMapping']>(null);
->>>>>>> 07df53a (added ai)
   const { user } = useAuth();
   
   // Handle file upload
@@ -56,19 +50,83 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
         console.warn('WARNING: Data may be lost on browser refresh. Please log in for better data persistence.');
       }
       
-      // Save the data and file information
+      // Save the data and file information immediately (non-blocking upload handled inside)
       await setBusinessData(parsedData, fileData, file.name);
-      
-<<<<<<< HEAD
-      // Calculate metrics after data is loaded
-      const metrics = DataAnalysisService.calculateKPIs(parsedData);
+
+      // Calculate metrics right away so UI updates promptly (do not wait for AI/network tasks)
+      const metrics = await DataAnalysisService.analyzeBusinessData(parsedData, aiMapping || undefined);
       setAnalyzedMetrics(metrics);
-=======
-  // Calculate metrics after data is loaded (use AI mapping if available)
-  const metrics = await DataAnalysisService.analyzeBusinessData(parsedData, aiMapping || undefined);
-  setAnalyzedMetrics(metrics);
->>>>>>> 07df53a (added ai)
       
+      // Kick off AI mapping + optional Gemini analysis in background after UI is responsive
+      (async () => {
+        try {
+          const statusRes = await fetch('/api/ai/status');
+          if (statusRes.ok) {
+            const statusJson = await statusRes.json();
+            if (statusJson.enabled) {
+              try {
+                const inferRes = await fetch('/api/ai/infer-metrics', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ headers: parsedData.headers, sampleRows: parsedData.data.slice(0, 50) })
+                });
+                if (inferRes.ok) {
+                  const mapping = await inferRes.json();
+                  setAiMapping(mapping);
+                  try { localStorage.setItem('aiMapping', JSON.stringify(mapping)); } catch {}
+                  // Optionally refresh analyzed metrics with new mapping (lightweight)
+                  try {
+                    const remetrics = await DataAnalysisService.analyzeBusinessData(parsedData, mapping);
+                    setAnalyzedMetricsState(remetrics);
+                    try { localStorage.setItem('analyzedMetrics', JSON.stringify(remetrics)); } catch {}
+                  } catch {}
+                }
+              } catch (inferErr) {
+                console.warn('AI infer-metrics failed (background):', inferErr);
+              }
+
+              // Optionally auto-run Gemini summary without blocking UI
+              try {
+                let autoRun = false;
+                try {
+                  if (user && user.uid) {
+                    const { default: FirebaseUserSettingsService } = await import('@/services/firebase-user-settings-service');
+                    const settings = await FirebaseUserSettingsService.getUserSettings(user.uid);
+                    if (settings && typeof settings.autoRunGemini === 'boolean') {
+                      autoRun = settings.autoRunGemini;
+                    } else {
+                      autoRun = localStorage.getItem('autoRunGemini') === 'true';
+                    }
+                  } else {
+                    autoRun = localStorage.getItem('autoRunGemini') === 'true';
+                  }
+                } catch (e) {
+                  autoRun = localStorage.getItem('autoRunGemini') === 'true';
+                }
+
+                if (autoRun) {
+                  const askRes = await fetch('/api/ai/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: 'Provide a short summary and 3 insights for this dataset', dataset: { headers: parsedData.headers, data: parsedData.data.slice(0, 500) } })
+                  });
+                  if (askRes.ok) {
+                    const analysis = await askRes.json();
+                    try { localStorage.setItem('lastGeminiAnalysis', JSON.stringify(analysis)); } catch {}
+                  } else {
+                    try { localStorage.removeItem('lastGeminiAnalysis'); } catch {}
+                  }
+                }
+              } catch (askErr) {
+                console.warn('Gemini auto-analysis failed (background):', askErr);
+              }
+            }
+          }
+        } catch (statusErr) {
+          console.warn('AI status check failed (background)', statusErr);
+        }
+      })();
+
       return { success: true, data: parsedData };
     } catch (error) {
       console.error('Error processing file:', error);
@@ -89,25 +147,26 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
         console.log('Loading data from localStorage...');
         const storedBusinessData = localStorage.getItem('businessData');
         const storedAnalyzedMetrics = localStorage.getItem('analyzedMetrics');
-<<<<<<< HEAD
         const storedFileUrl = localStorage.getItem('fileUrl');
         const storedFileName = localStorage.getItem('fileName');
-=======
-  const storedFileUrl = localStorage.getItem('fileUrl');
-        const storedFileName = localStorage.getItem('fileName');
-  const storedAiMapping = localStorage.getItem('aiMapping');
->>>>>>> 07df53a (added ai)
+        const storedAiMapping = localStorage.getItem('aiMapping');
         const storedUserId = localStorage.getItem('userAuthId');
 
         // Load data from localStorage if it exists
+        let parsedLocalBusiness: BusinessData | null = null;
+        let parsedLocalMetrics: AnalyzedMetrics | null = null;
+        let parsedLocalMapping: any | null = null;
+
         if (storedBusinessData) {
           console.log('Found business data in localStorage');
-          setBusinessDataState(JSON.parse(storedBusinessData));
+          try { parsedLocalBusiness = JSON.parse(storedBusinessData) as BusinessData; } catch {}
+          if (parsedLocalBusiness) setBusinessDataState(parsedLocalBusiness);
         }
 
         if (storedAnalyzedMetrics) {
           console.log('Found analyzed metrics in localStorage');
-          setAnalyzedMetricsState(JSON.parse(storedAnalyzedMetrics));
+          try { parsedLocalMetrics = JSON.parse(storedAnalyzedMetrics) as AnalyzedMetrics; } catch {}
+          if (parsedLocalMetrics) setAnalyzedMetricsState(parsedLocalMetrics);
         }
 
         if (storedFileUrl) {
@@ -118,13 +177,22 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
           setFileName(storedFileName);
         }
 
-<<<<<<< HEAD
-=======
         if (storedAiMapping) {
-          try { setAiMapping(JSON.parse(storedAiMapping)); } catch {}
+          try { parsedLocalMapping = JSON.parse(storedAiMapping); setAiMapping(parsedLocalMapping); } catch {}
         }
 
->>>>>>> 07df53a (added ai)
+        // If we have data but no analyzed metrics locally, compute them now (fixes blank Overview after refresh)
+        if (parsedLocalBusiness && !parsedLocalMetrics) {
+          try {
+            console.log('Analyzed metrics not found locally; computing from stored business data...');
+            const computed = await DataAnalysisService.analyzeBusinessData(parsedLocalBusiness, parsedLocalMapping || undefined);
+            setAnalyzedMetricsState(computed);
+            try { localStorage.setItem('analyzedMetrics', JSON.stringify(computed)); } catch {}
+          } catch (computeErr) {
+            console.warn('Failed to compute analyzed metrics from local data', computeErr);
+          }
+        }
+
         // Only attempt Firebase loading if user is logged in
         if (user) {
           console.log('User is logged in, checking Firebase for newer data...');
@@ -147,64 +215,75 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
           localStorage.setItem('userAuthId', user.uid);
           
           try {
-<<<<<<< HEAD
-            const userFiles = await FirebaseStorageService.getUserBusinessDataFiles();
-
-            if (userFiles && userFiles.length > 0) {
-=======
             if (process.env.NEXT_PUBLIC_SKIP_CLOUD_LISTING === 'true') {
               console.log('Skipping Firebase listing (NEXT_PUBLIC_SKIP_CLOUD_LISTING=true)');
             } else {
               const userFiles = await FirebaseStorageService.getUserBusinessDataFiles();
 
               if (userFiles && userFiles.length > 0) {
->>>>>>> 07df53a (added ai)
-              // Use the most recent file
-              const latestFile = userFiles[userFiles.length - 1];
-              setFileUrl(latestFile.url);
-              setFileName(latestFile.name);
-              
-              // Store the file URL and name in localStorage
-              localStorage.setItem('fileUrl', latestFile.url);
-              localStorage.setItem('fileName', latestFile.name);
-              
-              // Fetch the actual file content from Firebase
-              try {
-                console.log('Fetching file content from Firebase:', latestFile.name);
-                const response = await fetch(latestFile.url);
-                const fileContent = await response.text();
+                // Use the most recent file
+                const latestFile = userFiles[userFiles.length - 1];
+                setFileUrl(latestFile.url);
+                setFileName(latestFile.name);
                 
-                // Parse the CSV content
-                const parsedData = await parseCSVFile(fileContent);
+                // Store the file URL and name in localStorage
+                localStorage.setItem('fileUrl', latestFile.url);
+                localStorage.setItem('fileName', latestFile.name);
                 
-<<<<<<< HEAD
-                // Load the data and calculate metrics
-                setBusinessDataState(parsedData);
-                const metrics = DataAnalysisService.calculateKPIs(parsedData);
-=======
-                // Load the data and calculate metrics (use AI mapping if available)
-                setBusinessDataState(parsedData);
-                const metrics = await DataAnalysisService.analyzeBusinessData(parsedData, aiMapping || undefined);
->>>>>>> 07df53a (added ai)
-                setAnalyzedMetricsState(metrics);
-                
-                // Also save to localStorage for redundancy
-                localStorage.setItem('businessData', JSON.stringify(parsedData));
-                localStorage.setItem('analyzedMetrics', JSON.stringify(metrics));
-                
-                console.log('Successfully loaded business data from Firebase:', latestFile.name);
-              } catch (fetchError) {
-                console.error('Error fetching file content from Firebase:', fetchError);
-                // Keep localStorage data if Firebase fetch fails
-              }
-<<<<<<< HEAD
-            } else {
-              console.log('No files found in Firebase storage for this user');
-=======
+                // Fetch the actual file content from Firebase
+                try {
+                  console.log('Fetching file content from Firebase:', latestFile.name);
+                  const response = await fetch(latestFile.url);
+                  const fileContent = await response.text();
+                  
+                  // Parse the CSV content
+                  const parsedData = await parseCSVFile(fileContent);
+                  
+                  // Load the data and calculate metrics (use AI mapping if available)
+                  setBusinessDataState(parsedData);
+                  // Try to infer mapping from AI if available
+                  let usedMappingFromCloud = aiMapping;
+                  try {
+                    const statusRes = await fetch('/api/ai/status');
+                    if (statusRes.ok) {
+                      const statusJson = await statusRes.json();
+                      if (statusJson.enabled) {
+                        try {
+                          const inferRes = await fetch('/api/ai/infer-metrics', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ headers: parsedData.headers, sampleRows: parsedData.data.slice(0, 50) })
+                          });
+                          if (inferRes.ok) {
+                            const mapping = await inferRes.json();
+                            setAiMapping(mapping);
+                            usedMappingFromCloud = mapping;
+                            try { localStorage.setItem('aiMapping', JSON.stringify(mapping)); } catch {}
+                          }
+                        } catch (inferErr) {
+                          console.warn('AI infer-metrics failed during Firebase load', inferErr);
+                        }
+                      }
+                    }
+                  } catch (statusErr) {
+                    console.warn('AI status check failed during Firebase load', statusErr);
+                  }
+
+                  const metrics = await DataAnalysisService.analyzeBusinessData(parsedData, usedMappingFromCloud || undefined);
+                  setAnalyzedMetricsState(metrics);
+                  
+                  // Also save to localStorage for redundancy
+                  localStorage.setItem('businessData', JSON.stringify(parsedData));
+                  localStorage.setItem('analyzedMetrics', JSON.stringify(metrics));
+                  
+                  console.log('Successfully loaded business data from Firebase:', latestFile.name);
+                } catch (fetchError) {
+                  console.error('Error fetching file content from Firebase:', fetchError);
+                  // Keep localStorage data if Firebase fetch fails
+                }
               } else {
                 console.log('No files found in Firebase storage for this user');
               }
->>>>>>> 07df53a (added ai)
             }
           } catch (firebaseError) {
             console.error('Error accessing Firebase storage:', firebaseError);
@@ -231,72 +310,41 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
 
     if (data) {
       try {
-<<<<<<< HEAD
-=======
-        // Try Gemini metric inference (best-effort)
-        try {
-          const statusRes = await fetch('/api/ai/status');
-          if (statusRes.ok) {
-            const { enabled } = await statusRes.json();
-            if (enabled) {
-              const resp = await fetch('/api/ai/infer-metrics', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ headers: data.headers, sampleRows: data.data.slice(0, 200) }),
-              });
-              if (resp.ok) {
-                const json = await resp.json();
-                const mapping = {
-                  columns: json.columns || {},
-                  charts: json.charts || {},
-                };
-                setAiMapping(mapping);
-                localStorage.setItem('aiMapping', JSON.stringify(mapping));
-              }
-            }
-          }
-        } catch {}
+        // Save immediately to localStorage for fast persistence
+        localStorage.setItem('businessData', JSON.stringify(data));
+        if (fileName) {
+          try { localStorage.setItem('fileName', fileName); } catch {}
+          setFileName(fileName);
+        }
 
->>>>>>> 07df53a (added ai)
-        // Prioritize Firebase storage if user is logged in and file data is provided
+        // Kick off Firebase upload asynchronously to avoid blocking UI
         if (user && fileData && fileName) {
-          console.log('User is logged in, saving data to Firebase...');
-          // Upload to Firebase Storage with user ID in the path
-          const result = await FirebaseStorageService.storeBusinessDataFile(fileData, fileName);
-
-          // Create metadata with user ID
-          const metadata = {
-            fileName: result.name,
-            url: result.url,
-            uploadDate: new Date().toISOString(),
-            userId: user.uid || 'anonymous' // Store user ID in metadata
-          };
-
-          // Store the file URL and name in localStorage with user ID for persistence
-          localStorage.setItem('fileUrl', result.url);
-          localStorage.setItem('fileName', result.name);
-          localStorage.setItem('userAuthId', user.uid);
-          localStorage.setItem('businessDataMetadata', JSON.stringify(metadata));
-
-          // Update state with file info
-          setFileUrl(result.url);
-          setFileName(result.name);
-          console.log('Data saved to Firebase successfully');
+          (async () => {
+            try {
+              console.log('User is logged in, saving data to Firebase (async)...');
+              const result = await FirebaseStorageService.storeBusinessDataFile(fileData, fileName);
+              const metadata = {
+                fileName: result.name,
+                url: result.url,
+                uploadDate: new Date().toISOString(),
+                userId: user.uid || 'anonymous'
+              };
+              localStorage.setItem('fileUrl', result.url);
+              localStorage.setItem('fileName', result.name);
+              localStorage.setItem('userAuthId', user.uid);
+              localStorage.setItem('businessDataMetadata', JSON.stringify(metadata));
+              setFileUrl(result.url);
+              setFileName(result.name);
+              console.log('Data saved to Firebase successfully');
+            } catch (firebaseErr) {
+              console.warn('Async Firebase save failed; continuing with local data only', firebaseErr);
+            }
+          })();
         } else {
           console.log('User not logged in or no file data, skipping Firebase save');
         }
-        
-        // Always save to localStorage as a fallback
-        localStorage.setItem('businessData', JSON.stringify(data));
       } catch (error) {
-        console.error('Failed to save business data:', error);
-        // Still try to save to localStorage even if Firebase fails
-        try {
-          localStorage.setItem('businessData', JSON.stringify(data));
-          console.log('Data saved to localStorage as fallback');
-        } catch (localError) {
-          console.error('Failed to save to localStorage:', localError);
-        }
+        console.error('Failed to persist business data locally:', error);
       } finally {
         setIsProcessing(false);
       }
@@ -342,10 +390,7 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
       // Clear state
       setBusinessDataState(null);
       setAnalyzedMetricsState(null);
-<<<<<<< HEAD
-=======
-  setAiMapping(null);
->>>>>>> 07df53a (added ai)
+      setAiMapping(null);
       
       if (fileUrl) {
         localStorage.removeItem('fileUrl');
@@ -376,10 +421,7 @@ export function BusinessDataProvider({ children }: { children: ReactNode }) {
       isProcessing,
       fileUrl,
       fileName,
-<<<<<<< HEAD
-=======
       aiMapping,
->>>>>>> 07df53a (added ai)
       setBusinessData,
       setAnalyzedMetrics,
       setIsProcessing,

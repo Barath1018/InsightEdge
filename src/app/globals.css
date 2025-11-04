@@ -389,13 +389,9 @@ body {
   }
   
   .bg-card:hover {
-    transform: translateY(-2px) scale(1.005);
-    box-shadow: 
-      0 12px 40px rgba(15, 23, 42, 0.06),
-      0 6px 20px rgba(59, 130, 246, 0.05),
-      0 3px 12px rgba(34, 197, 94, 0.04),
-      inset 0 1px 0 rgba(255, 255, 255, 0.95),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+    /* Subtle static hover for non-interactive cards */
+    transform: none;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255,255,255,0.6);
   }
   
   .bg-card:hover::before {
@@ -439,19 +435,9 @@ body {
   }
   
   .bg-primary:hover {
-    transform: translateY(-2px) scale(1.03);
-    background: linear-gradient(135deg, 
-      hsl(217, 91%, 65%) 0%,
-      hsl(212, 88%, 60%) 30%,
-      hsl(207, 85%, 55%) 70%,
-      hsl(202, 82%, 50%) 100%
-    ) !important;
-    box-shadow: 
-      0 6px 24px rgba(59, 130, 246, 0.35),
-      0 4px 12px rgba(37, 99, 235, 0.25),
-      0 2px 6px rgba(29, 78, 216, 0.15),
-      inset 0 1px 0 rgba(255, 255, 255, 0.35),
-      inset 0 -1px 0 rgba(29, 78, 216, 0.2);
+    transform: none;
+    background: hsl(var(--primary)) !important;
+    box-shadow: 0 2px 8px rgba(59,130,246,0.18);
   }
   
   .bg-primary:hover::before {
@@ -503,18 +489,8 @@ body {
   }
   
   /* Enterprise KPI highlight effects with sophisticated animations */
-  .text-2xl, .text-3xl, .text-4xl {
-    text-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    position: relative;
-  }
-  
-  .text-2xl:hover, .text-3xl:hover, .text-4xl:hover {
-    text-shadow: 
-      0 3px 12px rgba(59, 130, 246, 0.25),
-      0 1px 6px rgba(34, 197, 94, 0.1);
-    transform: scale(1.02) translateY(-1px);
-  }
+  .text-2xl, .text-3xl, .text-4xl { text-shadow: none; transition: color .25s ease; position: relative; }
+  .text-2xl:hover, .text-3xl:hover, .text-4xl:hover { text-shadow: none; transform: none; }
   
   /* Professional input field styling */
   .bg-background input {
@@ -591,3 +567,9 @@ body {
     color: hsl(217, 91%, 60%) !important;
   }
 }
+
+  /* Global neutralization for non-interactive hover illusions */
+  :where(.bg-card, .text-2xl, .text-3xl, .text-4xl):not(a,button,[role=button],[tabindex]) { cursor: default; }
+  :where(.bg-card, .text-2xl, .text-3xl, .text-4xl):not(a,button,[role=button],[tabindex]):hover { filter: none !important; }
+  /* Constrain transition intensity globally for a calmer, professional feel */
+  * { transition-property: color, background-color, border-color, opacity, box-shadow, transform; transition-duration: 150ms; }

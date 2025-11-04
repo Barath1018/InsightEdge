@@ -33,6 +33,16 @@ export interface ExportResult {
 
 export class ExportService {
   /**
+   * Normalize various input shapes (AnalyzedMetrics, custom payload from Reports page, etc.)
+   * into a single payload object used by all exporters.
+   */
+  private static normalizePayload(data: any): any {
+    if (!data) return {};
+    // If data already looks like our payload, return as-is
+    if (data.kpis || data.chartData || data.dataSummary || data.insights) return data;
+    return data;
+  }
+  /**
    * Export dashboard as PDF report
    */
   static async exportToPDF(
@@ -40,6 +50,7 @@ export class ExportService {
     options: ExportOptions
   ): Promise<ExportResult> {
     try {
+      const payload = this.normalizePayload(data);
       const doc = new jsPDF();
       let yPosition = 20;
       
@@ -53,26 +64,39 @@ export class ExportService {
       doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, yPosition);
       yPosition += 20;
       
+      // Optional embedded chart image at top
+      if (payload && payload.chartImageDataUrl) {
+        try {
+          const pageWidth = (doc as any).internal.pageSize.getWidth();
+          const usableWidth = pageWidth - 40; // margins
+          const imgHeight = usableWidth * (9 / 16); // assume 16:9 ratio
+          doc.addImage(payload.chartImageDataUrl, 'PNG', 20, yPosition, usableWidth, imgHeight, undefined, 'FAST');
+          yPosition += imgHeight + 10;
+        } catch (e) {
+          console.warn('Failed to embed chart image into PDF, continuing without image.', e);
+        }
+      }
+
       // Executive Summary
-      if (data) {
+      if (payload) {
         doc.setFontSize(14);
         doc.text('Executive Summary', 20, yPosition);
         yPosition += 10;
         
         doc.setFontSize(10);
-        const summary = this.generateExecutiveSummary(data);
+        const summary = payload.aiSummary || this.generateExecutiveSummary(payload);
         const splitSummary = doc.splitTextToSize(summary, 170);
         doc.text(splitSummary, 20, yPosition);
         yPosition += splitSummary.length * 5 + 10;
       }
       
       // KPIs Section
-      if (options.includeCharts && data.kpis) {
+      if (options.includeCharts && payload.kpis) {
         doc.setFontSize(14);
         doc.text('Key Performance Indicators', 20, yPosition);
         yPosition += 10;
         
-        data.kpis.forEach((kpi: any) => {
+        payload.kpis.forEach((kpi: any) => {
           if (yPosition > 250) {
             doc.addPage();
             yPosition = 20;
@@ -85,19 +109,28 @@ export class ExportService {
       }
       
       // Data Tables Section
-      if (options.includeTables && data.data && data.data.length > 0) {
+      if (options.includeTables && payload.data && payload.data.length > 0) {
         doc.setFontSize(14);
         doc.text('Data Summary', 20, yPosition);
         yPosition += 10;
         
         doc.setFontSize(10);
-        doc.text(`Total Records: ${data.data.length}`, 25, yPosition);
+        doc.text(`Total Records: ${payload.data.length}`, 25, yPosition);
         yPosition += 8;
         
-        if (data.headers) {
-          doc.text(`Columns: ${data.headers.join(', ')}`, 25, yPosition);
+        if (payload.headers) {
+          doc.text(`Columns: ${payload.headers.join(', ')}`, 25, yPosition);
           yPosition += 8;
         }
+      } else if (options.includeTables && payload.dataSummary) {
+        // Fallback to data summary if raw rows aren't available
+        doc.setFontSize(14);
+        doc.text('Data Summary', 20, yPosition);
+        yPosition += 10;
+        doc.setFontSize(10);
+        const total = payload.dataSummary.totalRecords ?? 0;
+        doc.text(`Total Records: ${total}`, 25, yPosition);
+        yPosition += 8;
       }
       
       // Watermark
@@ -135,6 +168,7 @@ export class ExportService {
     options: ExportOptions
   ): Promise<ExportResult> {
     try {
+      const payload = this.normalizePayload(data);
       // For client-side compatibility, we'll create a structured text file that can be imported into PowerPoint
       const slides = [
         {
@@ -143,26 +177,34 @@ export class ExportService {
         },
         {
           title: 'Executive Summary',
-          content: data ? this.generateExecutiveSummary(data) : 'No data available'
+          content: payload ? (payload.aiSummary || this.generateExecutiveSummary(payload)) : 'No data available'
         }
       ];
       
       // Add KPIs slide
-      if (options.includeCharts && data.kpis) {
+      if (options.includeCharts && payload.kpis) {
         slides.push({
           title: 'Key Performance Indicators',
-          content: data.kpis.map((kpi: any) => `• ${kpi.title}: ${kpi.value}`).join('\n')
+          content: payload.kpis.map((kpi: any) => `• ${kpi.title}: ${kpi.value}`).join('\n')
         });
       }
       
       // Add data summary slide
-      if (options.includeTables && data.data) {
+      if (options.includeTables && payload.data) {
         slides.push({
           title: 'Data Overview',
           content: [
-            `• Total Records: ${data.data.length}`,
-            data.headers ? `• Data Columns: ${data.headers.length}` : '',
-            data.headers ? `• Column Names: ${data.headers.join(', ')}` : ''
+            `• Total Records: ${payload.data.length}`,
+            payload.headers ? `• Data Columns: ${payload.headers.length}` : '',
+            payload.headers ? `• Column Names: ${payload.headers.join(', ')}` : ''
+          ].filter(Boolean).join('\n')
+        });
+      } else if (options.includeTables && payload.dataSummary) {
+        slides.push({
+          title: 'Data Overview',
+          content: [
+            `• Total Records: ${payload.dataSummary.totalRecords ?? 0}`,
+            payload.headers ? `• Data Columns: ${payload.headers.length}` : ''
           ].filter(Boolean).join('\n')
         });
       }
@@ -204,6 +246,7 @@ export class ExportService {
     options: ExportOptions
   ): Promise<ExportResult> {
     try {
+      const payload = this.normalizePayload(data);
       const workbook = XLSX.utils.book_new();
       
       // Summary Sheet
@@ -214,28 +257,28 @@ export class ExportService {
         ['Summary']
       ];
       
-      if (data) {
-        const summary = this.generateExecutiveSummary(data);
+      if (payload) {
+        const summary = payload.aiSummary || this.generateExecutiveSummary(payload);
         summaryData.push(['Executive Summary', summary]);
         summaryData.push(['']);
       }
       
-      if (data.data) {
-        summaryData.push(['Total Records', data.data.length]);
+      if (payload.data) {
+        summaryData.push(['Total Records', payload.data.length]);
       }
       
-      if (data.headers) {
-        summaryData.push(['Columns', data.headers.length]);
-        summaryData.push(['Column Names', data.headers.join(', ')]);
+      if (payload.headers) {
+        summaryData.push(['Columns', payload.headers.length]);
+        summaryData.push(['Column Names', payload.headers.join(', ')]);
       }
       
       const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
       XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
       
       // KPIs Sheet
-      if (options.includeCharts && data.kpis) {
+      if (options.includeCharts && payload.kpis) {
         const kpiData = [['KPI', 'Value', 'Previous Value']];
-        data.kpis.forEach((kpi: any) => {
+        payload.kpis.forEach((kpi: any) => {
           kpiData.push([kpi.title, kpi.value, kpi.previousValue || 'N/A']);
         });
         
@@ -244,14 +287,14 @@ export class ExportService {
       }
       
       // Raw Data Sheet
-      if (options.includeTables && data.data && data.data.length > 0) {
-        const dataSheet = XLSX.utils.json_to_sheet(data.data);
+      if (options.includeTables && payload.data && payload.data.length > 0) {
+        const dataSheet = XLSX.utils.json_to_sheet(payload.data);
         XLSX.utils.book_append_sheet(workbook, dataSheet, 'Raw Data');
       }
       
       // Chart Data Sheet
-      if (data.chartData && data.chartData.length > 0) {
-        const chartSheet = XLSX.utils.json_to_sheet(data.chartData);
+      if (payload.chartData && payload.chartData.length > 0) {
+        const chartSheet = XLSX.utils.json_to_sheet(payload.chartData);
         XLSX.utils.book_append_sheet(workbook, chartSheet, 'Chart Data');
       }
       
@@ -358,15 +401,51 @@ export class ExportService {
     options: ExportOptions
   ): Promise<ExportResult> {
     try {
-      const sections = this.buildReportSections(data, options);
+      // Prefer Gemini to generate a concise executive summary and extra insights (client-side only)
+      const payload: any = this.normalizePayload(data) || {};
+      if (typeof window !== 'undefined' && options.includeInsights) {
+        try {
+          let dataset: any = null;
+          try {
+            const stored = localStorage.getItem('businessData');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (parsed?.headers && parsed?.data) {
+                dataset = { headers: parsed.headers, data: parsed.data.slice(0, 500) };
+              }
+            }
+          } catch {}
+
+          const askRes = await fetch('/api/ai/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query: 'Create a concise executive summary (80-120 words) for this business report and list high-signal insights.',
+              dataset: dataset || undefined,
+            })
+          });
+          if (askRes.ok) {
+            const j = await askRes.json();
+            if (j?.answer) payload.aiSummary = j.answer;
+            if ((!payload.insights || payload.insights.length === 0) && Array.isArray(j?.insights)) {
+              payload.insights = j.insights;
+            }
+            if (!payload.kpis && Array.isArray(j?.kpis)) {
+              payload.kpis = j.kpis;
+            }
+          }
+        } catch (e) {
+          console.warn('Gemini summary for export failed; continuing without it.', e);
+        }
+      }
       
       switch (options.format) {
         case 'pdf':
-          return await this.exportToPDF(sections, options);
+          return await this.exportToPDF(payload, options);
         case 'pptx':
-          return await this.exportToPowerPoint(sections, options);
+          return await this.exportToPowerPoint(payload, options);
         case 'excel':
-          return await this.exportToExcel(sections, options);
+          return await this.exportToExcel(payload, options);
         default:
           throw new Error(`Unsupported format: ${options.format}`);
       }
@@ -503,7 +582,7 @@ export class ExportService {
     
     // Clean up object URL after download
     setTimeout(() => {
-      if (result.downloadUrl.startsWith('blob:')) {
+      if (result.downloadUrl?.startsWith('blob:')) {
         URL.revokeObjectURL(result.downloadUrl);
       }
     }, 1000);

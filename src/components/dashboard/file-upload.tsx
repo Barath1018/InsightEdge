@@ -97,15 +97,14 @@ export function FileUpload({ onFileProcessed, onProcessing }: FileUploadProps) {
         'Preparing dashboard...'
       ];
       
+      const stepDelayMs = 120; // make UI snappy
       for (let i = 0; i < steps.length; i++) {
         setProgress((i + 1) * (100 / steps.length));
-        
-        // When we reach the "Uploading to cloud" step
         if (i === 2) {
-          setUploadingToCloud(true);
+          // Only show cloud step if user logged in (actual upload handled async in context)
+          setUploadingToCloud(!!user);
         }
-        
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, stepDelayMs));
       }
       
       // Parse the file based on type

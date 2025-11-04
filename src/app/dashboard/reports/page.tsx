@@ -21,18 +21,67 @@ import { useState } from 'react';
 import * as React from 'react';
 
 export default function ReportsPage() {
-  const { businessData, isProcessing } = useBusinessData();
+  const { businessData, isProcessing, setBusinessData } = useBusinessData();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState<boolean>(false);
+  const [geminiCache, setGeminiCache] = useState<{
+    kpis: Array<{ title: string; value: string; change?: string }>
+    insights: string[]
+    charts: Array<{ type: 'line'|'bar'|'pie'|'scatter'; title: string; xAxis: string; yAxis: string[] }>
+    answer?: string
+  } | null>(null);
+
+  // Check Gemini availability once
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/ai/status', { cache: 'no-store' });
+        if (res.ok) {
+          const json = await res.json();
+          setAiEnabled(Boolean(json.enabled));
+        }
+      } catch {}
+    })();
+  }, []);
+
+  // Helper to call Gemini with dataset and cache results per session
+  const getGeminiAnalysis = React.useCallback(async () => {
+    if (!businessData || !aiEnabled) return null;
+    if (geminiCache) return geminiCache;
+    try {
+      const askRes = await fetch('/api/ai/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'Analyze this dataset and return KPIs and concise, high-signal insights for an executive report.',
+          dataset: { headers: businessData.headers, data: businessData.data }
+        })
+      });
+      if (!askRes.ok) return null;
+      const json = await askRes.json();
+      const result = {
+        kpis: Array.isArray(json?.kpis) ? json.kpis : [],
+        insights: Array.isArray(json?.insights) ? json.insights : [],
+        charts: Array.isArray(json?.charts) ? json.charts : [],
+        answer: typeof json?.answer === 'string' ? json.answer : undefined
+      } as any;
+      setGeminiCache(result);
+      return result;
+    } catch {
+      return null;
+    }
+  }, [aiEnabled, businessData, geminiCache]);
   
-  // Generate AI-enhanced reports based on business data
+  // Generate AI-enhanced reports based on business data (prefer Gemini if enabled)
   const generateAIReports = async () => {
     if (!businessData) return [];
     
     try {
-      // Get AI insights for content generation
-      const anomalies = await AIInsightsService.detectAnomalies(businessData.data);
-      const correlations = await AIInsightsService.analyzeCorrelations(businessData.data);
-      const forecasts = await AIInsightsService.generateForecasts(businessData.data);
+      // Prefer Gemini for insights count if available
+      const gem = await getGeminiAnalysis();
+      const anomalies = gem ? [] : await AIInsightsService.detectAnomalies(businessData.data);
+      const correlations = gem ? [] : await AIInsightsService.analyzeCorrelations(businessData.data);
+      const forecasts = gem ? [] : await AIInsightsService.generateForecasts(businessData.data);
       
       return [
         {
@@ -41,7 +90,7 @@ export default function ReportsPage() {
           type: 'AI-Enhanced Analysis',
           status: 'Final',
           description: 'Comprehensive business analysis with AI-powered insights, anomaly detection, and trend forecasting',
-          insights: correlations.length + anomalies.length + forecasts.length,
+          insights: gem ? gem.insights.length : (correlations.length + anomalies.length + forecasts.length),
           format: 'pdf'
         },
         {
@@ -50,7 +99,7 @@ export default function ReportsPage() {
           type: 'Financial AI Analysis',
           status: 'Final',
           description: 'AI-driven revenue analysis with predictive insights and optimization recommendations',
-          insights: Math.max(5, correlations.filter(c => c.category === 'revenue').length),
+          insights: gem ? Math.max(5, gem.insights.length) : Math.max(5, correlations.filter(c => c.category === 'revenue').length),
           format: 'excel'
         },
         {
@@ -59,7 +108,7 @@ export default function ReportsPage() {
           type: 'Customer Intelligence',
           status: 'Final',
           description: 'Deep dive into customer patterns using advanced AI analytics and behavioral modeling',
-          insights: Math.max(3, correlations.filter(c => c.category === 'customers').length),
+          insights: gem ? Math.max(3, gem.insights.length) : Math.max(3, correlations.filter(c => c.category === 'customers').length),
           format: 'pptx'
         },
         {
@@ -68,7 +117,7 @@ export default function ReportsPage() {
           type: 'Risk Analysis',
           status: 'Final',
           description: 'Critical business anomalies detected by AI algorithms with actionable recommendations',
-          insights: anomalies.length,
+          insights: gem ? Math.min(3, gem.insights.length) : anomalies.length,
           format: 'pdf'
         }
       ];
@@ -88,57 +137,69 @@ export default function ReportsPage() {
         return;
       }
       
-      // Generate AI insights for the report
-      const anomalies = await AIInsightsService.detectAnomalies(businessData.data);
-      const correlations = await AIInsightsService.analyzeCorrelations(businessData.data);
-      const forecasts = await AIInsightsService.generateForecasts(businessData.data);
+      // Prefer Gemini for insights/KPIs if available; fall back to local services
+      const gem = await getGeminiAnalysis();
+      const useGem = Boolean(gem && (gem.insights?.length || gem.kpis?.length));
+      const anomalies = useGem ? [] : await AIInsightsService.detectAnomalies(businessData.data);
+      const correlations = useGem ? [] : await AIInsightsService.analyzeCorrelations(businessData.data);
+      const forecasts = useGem ? [] : await AIInsightsService.generateForecasts(businessData.data);
       
       // Prepare comprehensive data for export
       const reportData = {
         data: businessData.data,
         headers: businessData.headers,
-        kpis: [
-          { title: 'Total Records', value: businessData.data.length },
-          { title: 'Data Quality', value: '95%' },
-          { title: 'AI Insights Generated', value: correlations.length + anomalies.length },
-          { title: 'Anomalies Detected', value: anomalies.length },
-          { title: 'Correlations Found', value: correlations.length },
-          { title: 'Forecasts Available', value: forecasts.length }
-        ],
-        insights: [
-          ...correlations.map(c => ({
-            title: c.title,
-            description: c.description,
-            impact: c.impact,
-            confidence: c.confidence,
-            category: c.category,
-            actionItems: c.actionItems
-          })),
-          ...anomalies.map(a => ({
-            title: `${a.field} Anomaly Detected`,
-            description: a.description,
-            impact: a.severity,
-            confidence: 95,
-            category: 'risk',
-            actionItems: [`Investigate ${a.field} anomaly`, 'Review data quality', 'Monitor for patterns']
-          })),
-          ...forecasts.map(f => ({
-            title: `${f.field} Forecast`,
-            description: `Predicted ${f.trend} trend with ${f.confidence}% confidence`,
-            impact: f.trend === 'increasing' ? 'high' : f.trend === 'decreasing' ? 'medium' : 'low',
-            confidence: f.confidence,
-            category: 'forecast',
-            actionItems: f.factors
-          }))
-        ],
+        kpis: useGem
+          ? (gem!.kpis || []).map((k: any) => ({ title: k.title, value: k.value || '', change: k.change }))
+          : [
+              { title: 'Total Records', value: businessData.data.length },
+              { title: 'Data Quality', value: '95%' },
+              { title: 'AI Insights Generated', value: correlations.length + anomalies.length },
+              { title: 'Anomalies Detected', value: anomalies.length },
+              { title: 'Correlations Found', value: correlations.length },
+              { title: 'Forecasts Available', value: forecasts.length }
+            ],
+        insights: useGem
+          ? (gem!.insights || []).map((s: string, i: number) => ({
+              title: `Insight ${i + 1}`,
+              description: s,
+              category: 'ai',
+              actionItems: []
+            }))
+          : [
+              ...correlations.map(c => ({
+                title: c.title,
+                description: c.description,
+                impact: c.impact,
+                confidence: c.confidence,
+                category: c.category,
+                actionItems: c.actionItems
+              })),
+              ...anomalies.map(a => ({
+                title: `${a.field} Anomaly Detected`,
+                description: a.description,
+                impact: a.severity,
+                confidence: 95,
+                category: 'risk',
+                actionItems: [`Investigate ${a.field} anomaly`, 'Review data quality', 'Monitor for patterns']
+              })),
+              ...forecasts.map(f => ({
+                title: `${f.field} Forecast`,
+                description: `Predicted ${f.trend} trend with ${f.confidence}% confidence`,
+                impact: f.trend === 'increasing' ? 'high' : f.trend === 'decreasing' ? 'medium' : 'low',
+                confidence: f.confidence,
+                category: 'forecast',
+                actionItems: f.factors
+              }))
+            ],
         chartData: businessData.data.slice(-20), // Last 20 records for trending
         dataSummary: {
           totalRecords: businessData.data.length,
           columns: businessData.headers.length,
-          anomaliesFound: anomalies.length,
-          correlationsDetected: correlations.length,
-          forecastsGenerated: forecasts.length
-        }
+          anomaliesFound: useGem ? 0 : anomalies.length,
+          correlationsDetected: useGem ? 0 : correlations.length,
+          forecastsGenerated: useGem ? 0 : forecasts.length
+        },
+        aiSummary: useGem ? gem!.answer : undefined
       };
       
       const exportOptions = {
@@ -202,16 +263,26 @@ export default function ReportsPage() {
     }
   }, [businessData, isProcessing]);
 
+  // Hydrate business data from localStorage when arriving directly at Reports
+  React.useEffect(() => {
+    if (!businessData && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('businessData');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setBusinessData(parsed);
+        }
+      } catch {}
+    }
+  }, [businessData, setBusinessData]);
+
   return (
-    <>
-      <div className="flex-1">
+    <div className="flex flex-1 flex-col gap-0">
+      <div>
         <h1 className="text-2xl font-semibold">Reports</h1>
-        <p className="text-sm text-muted-foreground">
-          Download and view your generated business reports.
-        </p>
+        <p className="text-sm text-muted-foreground">Download and view your generated business reports.</p>
       </div>
-      <main className="flex flex-1 flex-col gap-4 pt-4 sm:px-6 sm:py-0 md:gap-8">
-        <Card>
+      <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Brain className="h-5 w-5 text-blue-600" />
@@ -326,7 +397,6 @@ export default function ReportsPage() {
             )}
           </CardContent>
         </Card>
-      </main>
-    </>
+    </div>
   );
 }

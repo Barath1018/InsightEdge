@@ -21,7 +21,7 @@ const iconMap = {
 };
 
 export default function NotificationsPage() {
-  const { businessData, loading } = useBusinessData();
+  const { businessData, isProcessing } = useBusinessData();
   
   // Use mock notifications for now, or generate from business data if available
   const notifications = businessData ? [
@@ -60,7 +60,7 @@ export default function NotificationsPage() {
             <CardTitle>Recent Notifications</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading && !businessData ? (
+            {isProcessing && !businessData ? (
               <div className="space-y-4">
                 <Skeleton className="h-16 w-full" />
                 <Skeleton className="h-16 w-full" />

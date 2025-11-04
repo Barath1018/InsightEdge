@@ -20,6 +20,7 @@ export interface NaturalLanguageQuery {
   query: string;
   response: AIInsight[];
   suggestedQueries: string[];
+  answer?: string;
 }
 
 export interface AnomalyDetection {
@@ -58,10 +59,15 @@ export class AIInsightsService {
       // Generate suggested follow-up queries
       const suggestedQueries = this.generateSuggestedQueries(intent, insights);
       
+      const answer = insights.length
+        ? insights[0].description
+        : 'No strong signals found; consider uploading more data or refining your question.';
+
       return {
         query,
         response: insights,
-        suggestedQueries
+        suggestedQueries,
+        answer
       };
     } catch (error) {
       console.error('Error processing natural language query:', error);

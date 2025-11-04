@@ -10,12 +10,8 @@ import { getAuth } from 'firebase/auth';
 const firebaseConfig = {
   projectId: 'visionboard-e3o1o',
   appId: '1:979638584673:web:2cc532a5a4632488c5b120',
-<<<<<<< HEAD
-  storageBucket: 'visionboard-e3o1o.firebasestorage.app',
-=======
   // Use the default Firebase Storage bucket domain (appspot.com)
   storageBucket: 'visionboard-e3o1o.appspot.com',
->>>>>>> 07df53a (added ai)
   apiKey: 'AIzaSyCsnXq7g5TjPJsSItDH6Kf1G_CrlFGCEik',
   authDomain: 'visionboard-e3o1o.firebaseapp.com',
   measurementId: '',

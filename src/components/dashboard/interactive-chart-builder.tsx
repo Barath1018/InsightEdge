@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { BarChart3, PieChart, TrendingUp, ScatterChart, BarChart, LineChart, Settings, Download, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BusinessData } from '@/services/data-analysis-service';
+import { useBusinessData } from '@/contexts/business-data-context';
+import applyAiMappingToChartConfig from '@/lib/ai-chart-utils';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart as RechartsBarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, ScatterChart as RechartsScatterChart, Scatter as RechartsScatter } from 'recharts';
 import { ExportService } from '@/services/export-service';
 import { AIInsightsService } from '@/services/ai-insights-service';
@@ -17,7 +19,7 @@ import { AIInsightsService } from '@/services/ai-insights-service';
 // Import export libraries
 import html2canvas from 'html2canvas';
 
-interface ChartConfig {
+export interface ChartConfig {
   type: 'line' | 'bar' | 'pie' | 'scatter';
   xAxis: string;
   yAxis: string[];
@@ -30,7 +32,7 @@ interface ChartConfig {
 
 interface InteractiveChartBuilderProps {
   data: BusinessData;
-  onChartCreated: (chart: ChartConfig) => void;
+  onChartCreatedAction: (chart: ChartConfig) => void;
 }
 
 const chartTypes = [
@@ -47,7 +49,7 @@ const colorSchemes = [
   ['#22C55E', '#EF4444', '#F59E0B', '#8B5CF6', '#06B6D4'],
 ];
 
-export function InteractiveChartBuilder({ data, onChartCreated }: InteractiveChartBuilderProps) {
+export function InteractiveChartBuilder({ data, onChartCreatedAction }: InteractiveChartBuilderProps) {
   console.log('InteractiveChartBuilder received data:', { 
     type: data.type, 
     headers: data.headers, 
@@ -74,6 +76,18 @@ export function InteractiveChartBuilder({ data, onChartCreated }: InteractiveCha
     showLegend: true,
     showTooltip: true,
   });
+
+  const { aiMapping } = useBusinessData();
+
+  // If AI mapping is available, prefill chart configuration (x/y axes and title)
+  useEffect(() => {
+    if (!aiMapping) return;
+    try {
+      setChartConfig(prev => applyAiMappingToChartConfig(prev, aiMapping || undefined));
+    } catch (err) {
+      console.warn('Failed to apply AI mapping to chart builder', err);
+    }
+  }, [aiMapping]);
 
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
@@ -279,6 +293,104 @@ export function InteractiveChartBuilder({ data, onChartCreated }: InteractiveCha
     }
   };
 
+  // Standalone renderer for export (does not depend on active tab visibility)
+  const renderChartForExport = () => {
+    if (!previewData || previewData.length === 0) return null;
+
+    const commonProps = {
+      data: previewData,
+      margin: { top: 5, right: 30, left: 20, bottom: 5 },
+    };
+
+    switch (chartConfig.type) {
+      case 'line':
+        return (
+          <ResponsiveContainer width={800} height={450}>
+            <RechartsLineChart {...commonProps}>
+              {chartConfig.showGrid && <CartesianGrid strokeDasharray="3 3" />}
+              <XAxis dataKey="x" />
+              <YAxis />
+              {chartConfig.showTooltip && <Tooltip />}
+              {chartConfig.showLegend && <Legend />}
+              {chartConfig.yAxis.map((yKey, index) => (
+                <Line
+                  key={yKey}
+                  type="monotone"
+                  dataKey={yKey}
+                  stroke={chartConfig.colorScheme[index % chartConfig.colorScheme.length]}
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
+              ))}
+            </RechartsLineChart>
+          </ResponsiveContainer>
+        );
+      case 'bar':
+        return (
+          <ResponsiveContainer width={800} height={450}>
+            <RechartsBarChart {...commonProps}>
+              {chartConfig.showGrid && <CartesianGrid strokeDasharray="3 3" />}
+              <XAxis dataKey="x" />
+              <YAxis />
+              {chartConfig.showTooltip && <Tooltip />}
+              {chartConfig.showLegend && <Legend />}
+              {chartConfig.yAxis.map((yKey, index) => (
+                <Bar
+                  key={yKey}
+                  dataKey={yKey}
+                  fill={chartConfig.colorScheme[index % chartConfig.colorScheme.length]}
+                />
+              ))}
+            </RechartsBarChart>
+          </ResponsiveContainer>
+        );
+      case 'pie':
+        return (
+          <ResponsiveContainer width={800} height={450}>
+            <RechartsPieChart>
+              <Pie
+                data={previewData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                outerRadius={140}
+                fill="#8884d8"
+                dataKey={chartConfig.yAxis[0]}
+              >
+                {previewData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={chartConfig.colorScheme[index % chartConfig.colorScheme.length]} />
+                ))}
+              </Pie>
+              {chartConfig.showTooltip && <Tooltip />}
+              {chartConfig.showLegend && <Legend />}
+            </RechartsPieChart>
+          </ResponsiveContainer>
+        );
+      case 'scatter':
+        return (
+          <ResponsiveContainer width={800} height={450}>
+            <RechartsScatterChart {...commonProps}>
+              {chartConfig.showGrid && <CartesianGrid strokeDasharray="3 3" />}
+              <XAxis dataKey="x" />
+              <YAxis />
+              {chartConfig.showTooltip && <Tooltip />}
+              {chartConfig.showLegend && <Legend />}
+              {chartConfig.yAxis.map((yKey, index) => (
+                <RechartsScatter
+                  key={yKey}
+                  dataKey={yKey}
+                  fill={chartConfig.colorScheme[index % chartConfig.colorScheme.length]}
+                />
+              ))}
+            </RechartsScatterChart>
+          </ResponsiveContainer>
+        );
+      default:
+        return null;
+    }
+  };
+
   const exportChart = () => {
     // Redirect to export tab instead of generic export
     if (!previewData || previewData.length === 0) {
@@ -290,30 +402,40 @@ export function InteractiveChartBuilder({ data, onChartCreated }: InteractiveCha
 
   const exportToPNG = async () => {
     try {
-      // Ensure we have preview data
       if (!previewData || previewData.length === 0) {
         alert('Chart not found. Please generate a preview first.');
         return;
       }
-      
-      const chartElement = document.querySelector('[data-chart-container]') as HTMLElement;
-      if (chartElement) {
-        const result = await ExportService.exportChartAsImage(chartElement, 'png', {
-          format: 'png',
-          title: chartConfig.title,
-          includeCharts: true,
-          includeTables: false,
-          includeInsights: false
-        });
-        
-        if (result.success) {
-          ExportService.downloadFile(result);
-        } else {
-          alert(`PNG export failed: ${result.error}`);
-        }
-      } else {
-        alert('Chart not found. Please generate a preview first.');
+
+      // Prefer hidden export container to avoid tab switching
+      let chartElement = document.querySelector('[data-chart-export-container]') as HTMLElement | null;
+      let previousTab = activeTab;
+      if (!chartElement) {
+        if (activeTab !== 'preview') setActiveTab('preview');
+        await new Promise((r) => setTimeout(r, 120));
+        chartElement = document.querySelector('[data-chart-container]') as HTMLElement | null;
       }
+      if (!chartElement) {
+        alert('Chart not found. Please generate a preview first.');
+        if (previousTab !== 'preview') setActiveTab(previousTab);
+        return;
+      }
+
+      const result = await ExportService.exportChartAsImage(chartElement, 'png', {
+        format: 'png',
+        title: chartConfig.title,
+        includeCharts: true,
+        includeTables: false,
+        includeInsights: false
+      });
+
+      if (result.success) {
+        ExportService.downloadFile(result);
+      } else {
+        alert(`PNG export failed: ${result.error}`);
+      }
+
+      if (previousTab !== 'preview' && activeTab === 'preview') setActiveTab(previousTab);
     } catch (error) {
       console.error('PNG export failed:', error);
       alert('PNG export failed. Please try again.');
@@ -322,12 +444,36 @@ export function InteractiveChartBuilder({ data, onChartCreated }: InteractiveCha
 
   const exportToPDF = async () => {
     try {
+      if (!previewData || previewData.length === 0) {
+        alert('No chart data available to export. Please generate a preview first.');
+        return;
+      }
+
+      // Prefer hidden export container to avoid tab switching
+      let chartElement = document.querySelector('[data-chart-export-container]') as HTMLElement | null;
+      let previousTab = activeTab;
+      if (!chartElement) {
+        if (activeTab !== 'preview') setActiveTab('preview');
+        await new Promise((r) => setTimeout(r, 120));
+        chartElement = document.querySelector('[data-chart-container]') as HTMLElement | null;
+      }
+      if (!chartElement) {
+        alert('Chart not found. Please generate a preview first.');
+        if (previousTab !== 'preview') setActiveTab(previousTab);
+        return;
+      }
+
+      // Capture chart image for embedding in PDF
+      const canvas = await html2canvas(chartElement as HTMLElement, { backgroundColor: '#ffffff', scale: 2, useCORS: true });
+      const chartImageDataUrl = canvas.toDataURL('image/png', 0.95);
+
       // Generate AI insights for the chart data
       const anomalies = await AIInsightsService.detectAnomalies(previewData);
       const correlations = await AIInsightsService.analyzeCorrelations(previewData);
-      
+
       const result = await ExportService.exportToPDF({
         chartData: previewData,
+        chartImageDataUrl,
         kpis: [
           { title: 'Chart Type', value: chartConfig.type },
           { title: 'Data Points', value: previewData?.length || 0 },
@@ -360,13 +506,15 @@ export function InteractiveChartBuilder({ data, onChartCreated }: InteractiveCha
         includeInsights: true,
         watermark: `AI-Enhanced Chart Analysis - ${new Date().toLocaleDateString()}`
       });
-      
+
       if (result.success) {
         ExportService.downloadFile(result);
         alert(`PDF exported successfully with ${anomalies.length + correlations.length} AI insights!`);
       } else {
         alert(`PDF export failed: ${result.error}`);
       }
+
+      if (previousTab !== 'preview' && activeTab === 'preview') setActiveTab(previousTab);
     } catch (error) {
       console.error('PDF export failed:', error);
       alert('PDF export failed. Please try again.');
@@ -488,7 +636,7 @@ export function InteractiveChartBuilder({ data, onChartCreated }: InteractiveCha
   };
 
   const saveChart = () => {
-    onChartCreated(chartConfig);
+    onChartCreatedAction(chartConfig);
     // Reset form
     setChartConfig({
       type: 'line',
@@ -596,6 +744,12 @@ export function InteractiveChartBuilder({ data, onChartCreated }: InteractiveCha
                          {column}
                        </SelectItem>
                      ))}
+                     {/* Include AI-suggested date column if present */}
+                     {aiMapping?.columns?.date && !categoricalColumns.includes(aiMapping.columns.date) && (
+                       <SelectItem key={aiMapping.columns.date} value={aiMapping.columns.date}>
+                         {aiMapping.columns.date}
+                       </SelectItem>
+                     )}
                    </SelectContent>
                  </Select>
                </div>
@@ -625,6 +779,12 @@ export function InteractiveChartBuilder({ data, onChartCreated }: InteractiveCha
                        <SelectItem key={column} value={column}>
                          {column}
                        </SelectItem>
+                     ))}
+                     {/* Include AI-suggested numeric columns if present */}
+                     {aiMapping?.columns && [aiMapping.columns.revenue, aiMapping.columns.expenses, aiMapping.columns.profit].filter(Boolean).map(col => (
+                       col && !numericColumns.includes(col) ? (
+                         <SelectItem key={col} value={col}>{col}</SelectItem>
+                       ) : null
                      ))}
                    </SelectContent>
                  </Select>
@@ -748,6 +908,13 @@ export function InteractiveChartBuilder({ data, onChartCreated }: InteractiveCha
                    🤖 AI insights will be automatically generated and included in your exports!
                  </p>
                </div>
+                {/* Hidden chart clone for export capture to avoid tab switching */}
+                <div
+                  data-chart-export-container
+                  style={{ position: 'absolute', left: '-100000px', width: 800, height: 450, pointerEvents: 'none' }}
+                >
+                  {renderChartForExport()}
+                </div>
                              <div className="grid grid-cols-1 gap-3 max-w-md mx-auto">
                  <Button variant="outline" onClick={exportToPNG}>
                    <Download className="h-4 w-4 mr-2" />

@@ -267,8 +267,6 @@ Add a `SECURITY.md` for coordinated disclosure.
 
 ---
 
-<<<<<<< HEAD
-=======
 ## 🔑 Enable Gemini AI (Optional)
 
 To power AI Q&A and auto-map chart topics from your uploaded file using Google Gemini:
@@ -289,8 +287,6 @@ What you get:
 - Overview page charts use those titles automatically. Without a key, built-in heuristics are used.
 
 ---
-
->>>>>>> 07df53a (added ai)
 ## 🛠 Scripts (Adjust If Needed)
 
 | Command | Description |

@@ -73,39 +73,25 @@ export interface Insight {
   category: 'revenue' | 'costs' | 'operations' | 'customers';
 }
 
-<<<<<<< HEAD
-=======
 export interface AiMapping {
   columns?: { revenue?: string | null; expenses?: string | null; profit?: string | null; date?: string | null };
   charts?: { salesTitle?: string; profitTitle?: string };
 }
 
->>>>>>> 07df53a (added ai)
 export class DataAnalysisService {
   /**
    * Analyzes uploaded business data and generates comprehensive metrics
    */
-<<<<<<< HEAD
-  static async analyzeBusinessData(data: BusinessData): Promise<AnalyzedMetrics> {
-=======
   static async analyzeBusinessData(data: BusinessData, mapping?: AiMapping): Promise<AnalyzedMetrics> {
->>>>>>> 07df53a (added ai)
     try {
       // Extract and clean data
       const cleanedData = this.cleanData(data);
       
       // Generate KPIs
-<<<<<<< HEAD
-      const kpis = this.generateKPIs(cleanedData);
-      
-      // Generate chart data
-      const chartData = this.generateChartData(cleanedData);
-=======
       const kpis = this.generateKPIs(cleanedData, mapping);
       
       // Generate chart data
       const chartData = this.generateChartData(cleanedData, mapping);
->>>>>>> 07df53a (added ai)
       
       // Generate notifications
       const notifications = this.generateNotifications(cleanedData, kpis);
@@ -170,15 +156,6 @@ export class DataAnalysisService {
     return isNaN(parsed) ? null : parsed;
   }
 
-<<<<<<< HEAD
-  private static generateKPIs(data: any[]): KPI[] {
-    const kpis: KPI[] = [];
-    
-    // Find revenue-related columns
-    const revenueColumns = this.findColumns(data, ['revenue', 'sales', 'income', 'amount']);
-    const expenseColumns = this.findColumns(data, ['expense', 'cost', 'spending', 'outlay']);
-    const profitColumns = this.findColumns(data, ['profit', 'net', 'margin']);
-=======
   private static generateKPIs(data: any[], mapping?: AiMapping): KPI[] {
     const kpis: KPI[] = [];
     
@@ -186,7 +163,6 @@ export class DataAnalysisService {
     const revenueColumns = this.findColumns(data, ['revenue', 'sales', 'income', 'amount'], mapping?.columns?.revenue || undefined);
     const expenseColumns = this.findColumns(data, ['expense', 'cost', 'spending', 'outlay'], mapping?.columns?.expenses || undefined);
     const profitColumns = this.findColumns(data, ['profit', 'net', 'margin'], mapping?.columns?.profit || undefined);
->>>>>>> 07df53a (added ai)
     const customerColumns = this.findColumns(data, ['customers', 'clients', 'orders', 'transactions']);
     
     // Total Revenue
@@ -199,11 +175,7 @@ export class DataAnalysisService {
         title: 'Total Revenue',
         value: this.formatCurrency(totalRevenue),
         change: `${change}% vs previous period`,
-<<<<<<< HEAD
-        trend: change > 0 ? 'up' : change < 0 ? 'down' : 'stable',
-=======
         trend: parseFloat(change) > 0 ? 'up' : parseFloat(change) < 0 ? 'down' : 'stable',
->>>>>>> 07df53a (added ai)
         previousValue: previousRevenue
       });
     }
@@ -218,11 +190,7 @@ export class DataAnalysisService {
         title: 'Total Expenses',
         value: this.formatCurrency(totalExpenses),
         change: `${change}% vs previous period`,
-<<<<<<< HEAD
-        trend: change > 0 ? 'up' : change < 0 ? 'down' : 'stable',
-=======
         trend: parseFloat(change) > 0 ? 'up' : parseFloat(change) < 0 ? 'down' : 'stable',
->>>>>>> 07df53a (added ai)
         previousValue: previousExpenses
       });
     }
@@ -239,11 +207,7 @@ export class DataAnalysisService {
         title: 'Net Profit',
         value: this.formatCurrency(netProfit),
         change: `${change}% vs previous period`,
-<<<<<<< HEAD
-        trend: change > 0 ? 'up' : change < 0 ? 'down' : 'stable',
-=======
         trend: parseFloat(change) > 0 ? 'up' : parseFloat(change) < 0 ? 'down' : 'stable',
->>>>>>> 07df53a (added ai)
         previousValue: previousProfit
       });
     }
@@ -260,11 +224,7 @@ export class DataAnalysisService {
         title: 'Avg. Order Value',
         value: this.formatCurrency(avgOrderValue),
         change: `${change}% vs previous period`,
-<<<<<<< HEAD
-        trend: change > 0 ? 'up' : change < 0 ? 'down' : 'stable',
-=======
         trend: parseFloat(change) > 0 ? 'up' : parseFloat(change) < 0 ? 'down' : 'stable',
->>>>>>> 07df53a (added ai)
         previousValue: previousAvg
       });
     }
@@ -274,72 +234,60 @@ export class DataAnalysisService {
     return kpis;
   }
 
-<<<<<<< HEAD
-  private static generateChartData(data: any[]): ChartDataPoint[] {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
-    const revenueColumns = this.findColumns(data, ['revenue', 'sales', 'income', 'amount']);
-    const expenseColumns = this.findColumns(data, ['expense', 'cost', 'spending', 'outlay']);
-=======
   private static generateChartData(data: any[], mapping?: AiMapping): ChartDataPoint[] {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const revenueColumns = this.findColumns(data, ['revenue', 'sales', 'income', 'amount'], mapping?.columns?.revenue || undefined);
     const expenseColumns = this.findColumns(data, ['expense', 'cost', 'spending', 'outlay'], mapping?.columns?.expenses || undefined);
     const profitColumns = this.findColumns(data, ['profit', 'net', 'margin'], mapping?.columns?.profit || undefined);
     const preferredDate = mapping?.columns?.date || undefined;
->>>>>>> 07df53a (added ai)
-    
-    return months.map((month, index) => {
-      const monthData = data.filter(row => {
-        // Try to find date columns and filter by month
-<<<<<<< HEAD
-        const dateColumns = this.findColumns(data, ['date', 'created', 'timestamp']);
-=======
-        const dateColumns = this.findColumns(data, ['date', 'created', 'timestamp'], preferredDate);
->>>>>>> 07df53a (added ai)
-        if (dateColumns.length > 0) {
-          const dateValue = row[dateColumns[0]];
-          if (dateValue) {
-            const date = new Date(dateValue);
-            return date.getMonth() === index;
-          }
-        }
-        return false;
+
+    // Identify a date column once (avoid re-computation in loop)
+    const dateColumns = this.findColumns(data, ['date', 'created', 'timestamp'], preferredDate);
+
+    // Build aggregation map monthIndex -> { totals }
+    const monthAgg: Record<number, { sales: number; expenses: number; profit: number }> = {};
+
+    if (dateColumns.length > 0) {
+      const dateCol = dateColumns[0];
+      data.forEach(row => {
+        const raw = row[dateCol];
+        if (!raw) return;
+        const date = new Date(raw);
+        if (isNaN(date.getTime())) return;
+        const m = date.getMonth();
+        if (!monthAgg[m]) monthAgg[m] = { sales: 0, expenses: 0, profit: 0 };
+        const rev = revenueColumns.length ? revenueColumns.reduce((s, col) => s + (typeof row[col] === 'number' ? row[col] : 0), 0) : 0;
+        const exp = expenseColumns.length ? expenseColumns.reduce((s, col) => s + (typeof row[col] === 'number' ? row[col] : 0), 0) : 0;
+        const prof = profitColumns.length ? profitColumns.reduce((s, col) => s + (typeof row[col] === 'number' ? row[col] : 0), 0) : (rev - exp);
+        monthAgg[m].sales += rev || 0;
+        monthAgg[m].expenses += exp || 0;
+        monthAgg[m].profit += prof || 0;
       });
-      
-<<<<<<< HEAD
-      const sales = monthData.length > 0 ? 
-        this.calculateTotal(monthData, revenueColumns) : 
-        Math.random() * 50000 + 30000;
-      
-      const expenses = monthData.length > 0 ? 
-        this.calculateTotal(monthData, expenseColumns) : 
-        sales * 0.7;
-      
-      const profit = sales - expenses;
-=======
-      const sales = monthData.length > 0 && revenueColumns.length > 0
-        ? this.calculateTotal(monthData, revenueColumns)
-        : Math.random() * 50000 + 30000;
+    }
 
-      const expenses = monthData.length > 0 && expenseColumns.length > 0
-        ? this.calculateTotal(monthData, expenseColumns)
-        : sales * 0.7;
+    // If no real date column, synthesize 12 months by distributing totals proportionally or generating sample trend
+    if (dateColumns.length === 0) {
+      // Compute overall totals (use existing numeric columns) to shape synthetic data
+      const totalRevenue = this.calculateTotal(data, revenueColumns);
+      const base = totalRevenue || 600000; // fallback synthetic base
+      months.forEach((_, idx) => {
+        // Simple sine + noise to give trend
+        const factor = 0.9 + Math.sin(idx / 12 * Math.PI * 2) * 0.1;
+        const sales = (base / 12) * factor;
+        const expenses = sales * 0.65;
+        const profit = sales - expenses;
+        monthAgg[idx] = { sales, expenses, profit };
+      });
+    }
 
-      const profit = monthData.length > 0 && profitColumns.length > 0
-        ? this.calculateTotal(monthData, profitColumns)
-        : sales - expenses;
->>>>>>> 07df53a (added ai)
-      
+    return months.map((label, idx) => {
+      const bucket = monthAgg[idx] || { sales: 0, expenses: 0, profit: 0 };
       return {
-        month,
-        sales,
-        profit,
-        revenue: sales,
-        expenses
+        month: label,
+        sales: bucket.sales,
+        profit: bucket.profit,
+        revenue: bucket.sales,
+        expenses: bucket.expenses,
       };
     });
   }
@@ -522,22 +470,14 @@ export class DataAnalysisService {
     return insights;
   }
 
-<<<<<<< HEAD
-  private static findColumns(data: any[], keywords: string[]): string[] {
-    if (data.length === 0) return [];
-    
-    const headers = Object.keys(data[0]);
-=======
   private static findColumns(data: any[], keywords: string[], preferred?: string): string[] {
     if (data.length === 0) return [];
-    
     const headers = Object.keys(data[0]);
     if (preferred && headers.some(h => h.toLowerCase() === preferred.toLowerCase())) {
       return [headers.find(h => h.toLowerCase() === preferred.toLowerCase()) as string];
     }
->>>>>>> 07df53a (added ai)
-    return headers.filter(header => 
-      keywords.some(keyword => 
+    return headers.filter(header =>
+      keywords.some(keyword =>
         header.toLowerCase().includes(keyword.toLowerCase())
       )
     );

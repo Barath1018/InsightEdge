@@ -9,7 +9,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
+  },
+
+  "backend": {
+    "devPort": 9003
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
@@ -51,6 +56,7 @@
     "lucide-react": "^0.475.0",
     "next": "^15.5.4",
     "patch-package": "^8.0.0",
+    "xlsx": "^0.18.5",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
@@ -70,6 +76,7 @@
     "genkit-cli": "^1.14.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^1.2.0"
   }
 }

@@ -1,7 +1,5 @@
 'use client';
 
-'use client';
-
 import { useState } from 'react';
 import {
   CheckCircle,
@@ -52,11 +50,7 @@ import { AIInsightsService } from '@/services/ai-insights-service';
 import { useBusinessData } from '@/contexts/business-data-context';
 
 export default function Dashboard() {
-<<<<<<< HEAD
-  const { businessData, analyzedMetrics, isProcessing, setBusinessData, setAnalyzedMetrics, setIsProcessing } = useBusinessData();
-=======
   const { businessData, analyzedMetrics, isProcessing, setBusinessData, setAnalyzedMetrics, setIsProcessing, aiMapping } = useBusinessData();
->>>>>>> 07df53a (added ai)
   
   // Icon mapping for KPI cards - dynamically updated based on uploaded data
   const getIconMap = () => {
@@ -99,21 +93,12 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [customCharts, setCustomCharts] = useState<any[]>([]);
 
-<<<<<<< HEAD
-  const handleFileProcessed = async (data: BusinessData) => {
-    setBusinessData(data);
-    setIsProcessing(true);
-    
-    try {
-      const metrics = await DataAnalysisService.analyzeBusinessData(data);
-=======
   const handleFileProcessed = async (data: BusinessData, fileData?: string, uploadedFileName?: string) => {
+    // Use context setter which also triggers AI mapping inference if enabled
     await setBusinessData(data, fileData, uploadedFileName);
     setIsProcessing(true);
-    
     try {
       const metrics = await DataAnalysisService.analyzeBusinessData(data, aiMapping || undefined);
->>>>>>> 07df53a (added ai)
       setAnalyzedMetrics(metrics);
     } catch (error) {
       console.error('Failed to analyze data:', error);
@@ -202,9 +187,8 @@ export default function Dashboard() {
 
       {/* Main Navigation Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="ai-insights">AI Insights</TabsTrigger>
           <TabsTrigger value="charts">Custom Charts</TabsTrigger>
           <TabsTrigger value="data">Data Explorer</TabsTrigger>
@@ -213,6 +197,13 @@ export default function Dashboard() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
+          {/* Loading state to avoid blank screen when metrics are computing */}
+          {businessData && !analyzedMetrics && (
+            <div className="text-center py-10">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
+              <p className="text-sm text-muted-foreground mt-2">Analyzing your data…</p>
+            </div>
+          )}
           {/* Growth Alert */}
           {analyzedMetrics && (
             <Alert className={`border-l-4 ${
@@ -254,11 +245,7 @@ export default function Dashboard() {
             <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
               <Card className="rounded-2xl shadow-sm">
                 <CardHeader>
-<<<<<<< HEAD
-                  <CardTitle>Monthly Sales Performance</CardTitle>
-=======
                   <CardTitle>{aiMapping?.charts?.salesTitle || 'Monthly Sales Performance'}</CardTitle>
->>>>>>> 07df53a (added ai)
                 </CardHeader>
                 <CardContent className="pl-2">
                   <MonthlySalesPerformanceChart data={analyzedMetrics.chartData} />
@@ -266,11 +253,7 @@ export default function Dashboard() {
               </Card>
               <Card className="rounded-2xl shadow-sm">
                 <CardHeader>
-<<<<<<< HEAD
-                  <CardTitle>Profit Trend Analysis</CardTitle>
-=======
                   <CardTitle>{aiMapping?.charts?.profitTitle || 'Profit Trend Analysis'}</CardTitle>
->>>>>>> 07df53a (added ai)
                 </CardHeader>
                 <CardContent className="pl-2">
                   <ProfitTrendAnalysisChart data={analyzedMetrics.chartData} />
@@ -372,186 +355,7 @@ export default function Dashboard() {
           )}
         </TabsContent>
 
-        {/* Analytics Tab */}
-        <TabsContent value="analytics" className="space-y-6">
-          {businessData ? (
-            <div className="space-y-6">
-              {/* Analytics Header */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Advanced Analytics</h3>
-                  <p className="text-sm text-muted-foreground">
-                    AI-powered analytics based on your uploaded data
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    setIsProcessing(true);
-                    try {
-                      const [anomalies, correlations, forecasts] = await Promise.all([
-                        AIInsightsService.detectAnomalies(businessData.data),
-                        AIInsightsService.analyzeCorrelations(businessData.data),
-                        AIInsightsService.generateForecasts(businessData.data)
-                      ]);
-                      alert(`Analysis complete! Found ${anomalies.length} anomalies, ${correlations.length} correlations, and ${forecasts.length} forecasts.`);
-                    } catch (error) {
-                      console.error('Analytics failed:', error);
-                    } finally {
-                      setIsProcessing(false);
-                    }
-                  }}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <TrendingUp className="h-4 w-4 mr-2" />
-                      Run AI Analysis
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {/* Analytics Grid */}
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {/* Data Overview Card */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BarChart3 className="h-5 w-5" />
-                      Data Overview
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Total Records</span>
-                        <span className="font-semibold">{businessData.data.length.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Data Fields</span>
-                        <span className="font-semibold">{businessData.headers.length}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Numeric Fields</span>
-                        <span className="font-semibold">
-                          {businessData.headers.filter(header => 
-                            businessData.data.some(row => !isNaN(Number(row[header])))
-                          ).length}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* AI Insights Card */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5" />
-                      AI Insights
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => setActiveTab('ai-insights')}
-                        className="w-full"
-                      >
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Ask AI About Your Data
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Quick Actions Card */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Settings className="h-5 w-5" />
-                      Quick Actions
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <Button variant="outline" size="sm" className="w-full justify-start">
-                        <AlertTriangle className="h-4 w-4 mr-2" />
-                        Detect Anomalies
-                      </Button>
-                      <Button variant="outline" size="sm" className="w-full justify-start">
-                        <TrendingUp className="h-4 w-4 mr-2" />
-                        Generate Forecasts
-                      </Button>
-                      <Button variant="outline" size="sm" className="w-full justify-start">
-                        <BarChart3 className="h-4 w-4 mr-2" />
-                        Create Custom Chart
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* AI Analytics Results */}
-              {analyzedMetrics && (
-                <div className="grid gap-6 md:grid-cols-2">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Key Performance Indicators</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 gap-4">
-                        {analyzedMetrics.kpis.map((kpi, index) => (
-                          <div key={index} className="text-center p-4 bg-muted rounded-lg">
-                            <div className="flex items-center justify-center mb-2">
-                              {iconMap[kpi.title] || <BarChart3 className="h-5 w-5" />}
-                            </div>
-                            <p className="text-2xl font-bold">{kpi.value}</p>
-                            <p className="text-sm text-muted-foreground">{kpi.title}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Business Intelligence Insights</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {analyzedMetrics.insights.slice(0, 3).map((insight, index) => (
-                          <div key={index} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <p className="font-medium text-blue-800">{insight.title}</p>
-                            <p className="text-sm text-blue-600 mt-1">{insight.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <TrendingUp className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">Advanced Analytics</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Upload your business data to access AI-powered analytics
-              </p>
-              <Button variant="outline" onClick={() => setActiveTab('overview')}>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Data First
-              </Button>
-            </div>
-          )}
-        </TabsContent>
+        {/* Analytics tab removed from dashboard; use /analytics for a full AI-driven analytics page */}
 
         {/* AI Insights Tab */}
         <TabsContent value="ai-insights" className="space-y-6">
@@ -571,7 +375,7 @@ export default function Dashboard() {
             <div className="space-y-6">
               <InteractiveChartBuilder 
                 data={businessData} 
-                onChartCreated={handleChartCreated}
+                onChartCreatedAction={handleChartCreated}
               />
               
               {customCharts.length > 0 && (

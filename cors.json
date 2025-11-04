@@ -1,10 +1,6 @@
 [
   {
     "origin": ["http://localhost:9002", "http://localhost:9004"],
-<<<<<<< HEAD
-    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    "responseHeader": ["Content-Type", "Authorization"],
-=======
     "method": ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"],
     "responseHeader": [
       "Content-Type",
@@ -19,7 +15,6 @@
       "x-goog-stored-content-encoding",
       "x-goog-component-count"
     ],
->>>>>>> 07df53a (added ai)
     "maxAgeSeconds": 3600
   }
 ]

@@ -9,6 +9,11 @@ import { v4 as uuidv4 } from 'uuid';
  * Service for handling file operations with Firebase Storage
  */
 export class FirebaseStorageService {
+  // Track whether we've already encountered a hard listAll failure (e.g. CORS) this session
+  private static _previousListFailure = false;
+  // Simple in‑memory debounce so multiple components calling listing at once don't all trigger requests
+  private static _inFlightPromise: Promise<{ url: string; name: string }[]> | null = null;
+
   /**
    * Uploads a file to Firebase Storage
    * @param file - The file data as a string (base64)
@@ -81,6 +86,19 @@ export class FirebaseStorageService {
    */
   static async getUserBusinessDataFiles(): Promise<{ url: string, name: string }[]> {
     try {
+      // Allow opt-out via env (already respected higher up, but safe if service used directly elsewhere)
+      if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SKIP_CLOUD_LISTING === 'true') {
+        return [];
+      }
+
+      // Fast fail if we already know listing is broken (avoid hammering preflight / noisy console)
+      if (FirebaseStorageService._previousListFailure) {
+        return FirebaseStorageService.localFallback();
+      }
+      // Reuse an inflight promise if concurrent calls happen
+      if (FirebaseStorageService._inFlightPromise) {
+        return await FirebaseStorageService._inFlightPromise;
+      }
       // Get current user
       const auth = getAuth();
       const user = auth.currentUser;
@@ -91,42 +109,49 @@ export class FirebaseStorageService {
       }
       
       const userId = user.uid;
-      
-      // Get all files in the user's business-data directory
-      const userFilesRef = ref(storage, `users/${userId}/business-data`);
-      const filesList = await listAll(userFilesRef);
-      
-      // Get download URLs for all files
-      const filesData = await Promise.all(
-        filesList.items.map(async (fileRef) => {
-          const url = await getDownloadURL(fileRef);
-          const name = fileRef.name;
-          return { url, name };
-        })
-      );
-      
-      return filesData;
+
+      // Basic exponential backoff (small) in case of transient network issues
+      const attemptListing = async () => {
+        const userFilesRef = ref(storage, `users/${userId}/business-data`);
+        const filesList = await listAll(userFilesRef);
+        const filesData = await Promise.all(
+          filesList.items.map(async (fileRef) => {
+            const url = await getDownloadURL(fileRef);
+            const name = fileRef.name;
+            return { url, name };
+          })
+        );
+        return filesData;
+      };
+
+      let lastError: unknown = null;
+      const maxAttempts = 2; // keep low to avoid repeated preflights on hard CORS failure
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          FirebaseStorageService._inFlightPromise = attemptListing();
+          const result = await FirebaseStorageService._inFlightPromise;
+          FirebaseStorageService._inFlightPromise = null;
+          return result;
+        } catch (err) {
+          lastError = err;
+          FirebaseStorageService._inFlightPromise = null;
+          // If error looks like a CORS / HTTP status issue, don't keep retrying beyond first
+            const message = (err as any)?.message || '';
+            if (message.includes('CORS') || message.includes('Failed to fetch') || message.includes('ERR_FAILED')) {
+              break;
+            }
+          // small delay before second attempt (network hiccup)
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+      throw lastError ?? new Error('Unknown listing failure');
     } catch (error) {
       // Handle CORS and other Firebase Storage errors gracefully
       console.warn('Firebase Storage access failed (likely CORS issue):', error);
       console.log('Falling back to local storage for business data');
+      FirebaseStorageService._previousListFailure = true;
       
-      // Fallback to checking localStorage for previously stored files
-      try {
-        const storedFileUrl = localStorage.getItem('fileUrl');
-        const storedFileName = localStorage.getItem('fileName');
-        
-        if (storedFileUrl && storedFileName) {
-          return [{
-            url: storedFileUrl,
-            name: storedFileName
-          }];
-        }
-      } catch (localError) {
-        console.warn('Local storage fallback also failed:', localError);
-      }
-      
-      return [];
+      return FirebaseStorageService.localFallback();
     }
   }
 
@@ -144,5 +169,19 @@ export class FirebaseStorageService {
       console.error('Error storing business data file:', error);
       throw error;
     }
+  }
+
+  /** Local storage fallback helper */
+  private static localFallback(): { url: string; name: string }[] {
+    try {
+      const storedFileUrl = typeof window !== 'undefined' ? localStorage.getItem('fileUrl') : null;
+      const storedFileName = typeof window !== 'undefined' ? localStorage.getItem('fileName') : null;
+      if (storedFileUrl && storedFileName) {
+        return [{ url: storedFileUrl, name: storedFileName }];
+      }
+    } catch (e) {
+      console.warn('Local storage fallback also failed:', e);
+    }
+    return [];
   }
 }

@@ -62,7 +62,9 @@ export function SalesByCategoryChart() {
           strokeWidth={5}
         />
         <ChartLegend
-          content={<ChartLegendContent nameKey="category" />}
+          content={(legendProps: any) => (
+            <ChartLegendContent {...legendProps} nameKey="category" />
+          )}
           className="-translate-y-[2px] flex-wrap gap-2 [&>*]:basis-1/3 [&>*]:justify-center"
         />
       </PieChart>

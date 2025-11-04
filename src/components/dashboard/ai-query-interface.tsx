@@ -1,10 +1,6 @@
 'use client';
 
-<<<<<<< HEAD
-import { useState } from 'react';
-=======
-import { useEffect, useState } from 'react';
->>>>>>> 07df53a (added ai)
+import { useState, useEffect } from 'react';
 import { Search, Sparkles, MessageSquare, TrendingUp, AlertTriangle, Lightbulb, BarChart3, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,120 +28,142 @@ const suggestedQueries = [
 export function AIQueryInterface({ data }: AIQueryInterfaceProps) {
   const [query, setQuery] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-<<<<<<< HEAD
-=======
   const [geminiEnabled, setGeminiEnabled] = useState(false);
->>>>>>> 07df53a (added ai)
+  // Gemini integration temporarily disabled: we run locally only
   const [queryHistory, setQueryHistory] = useState<NaturalLanguageQuery[]>([]);
   const [anomalies, setAnomalies] = useState<AnomalyDetection[]>([]);
   const [forecasts, setForecasts] = useState<ForecastData[]>([]);
   const [allInsights, setAllInsights] = useState<AIInsight[]>([]);
+  const [lastAnswer, setLastAnswer] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'query' | 'insights' | 'anomalies' | 'forecasts'>('query');
 
-<<<<<<< HEAD
-=======
+  // Persist and restore query history and insights so they survive refresh
   useEffect(() => {
-    const checkStatus = async () => {
+    try {
+      const savedHistory = localStorage.getItem('aiQueryHistory');
+      const savedInsights = localStorage.getItem('aiAllInsights');
+      const savedAnswer = localStorage.getItem('aiLastAnswer');
+      if (savedHistory) setQueryHistory(JSON.parse(savedHistory));
+      if (savedInsights) setAllInsights(JSON.parse(savedInsights));
+      if (savedAnswer) setLastAnswer(savedAnswer);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('aiQueryHistory', JSON.stringify(queryHistory.slice(0, 10))); } catch {}
+  }, [queryHistory]);
+
+  useEffect(() => {
+    try { localStorage.setItem('aiAllInsights', JSON.stringify(allInsights.slice(0, 50))); } catch {}
+  }, [allInsights]);
+
+  useEffect(() => {
+    try {
+      if (lastAnswer) localStorage.setItem('aiLastAnswer', lastAnswer);
+    } catch {}
+  }, [lastAnswer]);
+
+  // Check Gemini status from /api/ai/status and show badge
+  useEffect(() => {
+    async function fetchStatus() {
       try {
         const res = await fetch('/api/ai/status');
         if (res.ok) {
-          const json = await res.json();
-          setGeminiEnabled(Boolean(json.enabled));
+          const j = await res.json();
+          setGeminiEnabled(Boolean(j.enabled));
         }
-      } catch {}
-    };
-    checkStatus();
+      } catch (e) {
+        console.warn('Failed to fetch AI status', e);
+      }
+    }
+    fetchStatus();
   }, []);
-
->>>>>>> 07df53a (added ai)
+ 
   const handleQuery = async () => {
     if (!query.trim() || isProcessing) return;
     
     setIsProcessing(true);
     
     try {
-<<<<<<< HEAD
-      const result = await AIInsightsService.processNaturalLanguageQuery(query, data.data);
-      setQueryHistory(prev => [result, ...prev]);
-      
-      // Add all insights from the query result to the insights collection
-      setAllInsights(prev => {
-        const newInsights = result.response.filter(insight => 
-          !prev.some(existing => existing.title === insight.title && existing.description === insight.description)
-        );
-        return [...newInsights, ...prev];
-      });
-=======
+      // Always call the unified server ask endpoint first (it uses Gemini when available and falls back locally)
       let finalResult: NaturalLanguageQuery | null = null;
-      if (geminiEnabled) {
-        // Call Gemini backend with dataset context
-        const resp = await fetch('/api/ai/ask', {
+      try {
+        const askRes = await fetch('/api/ai/ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, dataset: { headers: data.headers, data: data.data } }),
+          body: JSON.stringify({ query, dataset: { headers: data.headers, data: data.data.slice(0, 500) } })
         });
-        if (resp.ok) {
-          const payload = await resp.json();
-          // New schema: { answer, insights?, suggestedQueries? } ; fallback to { text }
-          const answer: string = payload.answer || payload.text || 'No response';
-          const suggested: string[] = Array.isArray(payload.suggestedQueries) ? payload.suggestedQueries : [];
-          const extraInsights = Array.isArray(payload.insights) ? payload.insights : [];
+        if (askRes.ok) {
+          const resp = await askRes.json();
+          // resp shape: { answer?: string, insights?: [{title,description,type,impact,confidence,actionItems}] | string[], suggestedQueries?: [] }
+          const mappedInsights = (resp.insights || []).map((ins: any) => {
+            // Handle both object-shaped insights and plain string insights
+            if (typeof ins === 'string') {
+              const title = ins.length > 60 ? `${ins.slice(0, 60)}…` : ins || 'Insight';
+              return {
+                type: 'recommendation',
+                title,
+                description: ins,
+                confidence: 75,
+                impact: 'medium',
+                category: 'operations',
+                data: [],
+                visualization: 'chart',
+                actionable: false,
+                actionItems: []
+              } as AIInsight;
+            }
 
-          // Map structured insights to our AIInsight shape
-          const mapped = extraInsights.map((i: any) => ({
-            type: i.type || 'recommendation',
-            title: i.title || 'Insight',
-            description: i.description || '',
-            confidence: typeof i.confidence === 'number' ? i.confidence : 80,
-            impact: i.impact || 'medium',
-            category: 'operations',
-            data: [],
-            actionable: !!(i.actionItems && i.actionItems.length),
-            actionItems: i.actionItems || [],
-          }));
-
-          // Always include the main answer as a recommendation card
-          mapped.unshift({
-            type: 'recommendation',
-            title: 'Gemini Answer',
-            description: answer,
-            confidence: 90,
-            impact: 'medium',
-            category: 'operations',
-            data: [],
-            actionable: false,
+            return {
+              type: ins.type || 'recommendation',
+              title: ins.title || (ins.description ? ins.description.slice(0, 60) : 'Insight'),
+              description: ins.description || '',
+              confidence: (typeof ins.confidence === 'number' ? ins.confidence : (ins.confidence ? Number(ins.confidence) : 75)),
+              impact: ins.impact || 'medium',
+              category: 'operations',
+              data: [],
+              visualization: 'chart',
+              actionable: Array.isArray(ins.actionItems) && ins.actionItems.length > 0,
+              actionItems: ins.actionItems || []
+            } as AIInsight;
           });
 
           finalResult = {
             query,
-            response: mapped,
-            suggestedQueries: suggested,
-          };
-        } else {
-          // Fallback to local processing
-          finalResult = await AIInsightsService.processNaturalLanguageQuery(query, data.data);
+            response: mappedInsights,
+            suggestedQueries: resp.suggestedQueries || [],
+            answer: typeof resp.answer === 'string' ? resp.answer : undefined
+          } as NaturalLanguageQuery;
         }
-      } else {
+      } catch (remoteErr) {
+        console.warn('Remote Gemini query failed, falling back to local', remoteErr);
+      }
+
+      // Fallback to local processing if remote didn't produce a result
+      if (!finalResult) {
         finalResult = await AIInsightsService.processNaturalLanguageQuery(query, data.data);
       }
-      
+
       if (finalResult) {
-        // Record in history
-        setQueryHistory((prev) => [finalResult as NaturalLanguageQuery, ...prev]);
-        
-        // Add all insights from the query result to the insights collection
+        setQueryHistory((prev) => [finalResult as NaturalLanguageQuery, ...prev].slice(0, 10));
         setAllInsights(prev => {
           const newInsights = (finalResult as NaturalLanguageQuery).response.filter(insight => 
             !prev.some(existing => existing.title === insight.title && existing.description === insight.description)
           );
           return [...newInsights, ...prev];
         });
+        setLastAnswer(finalResult.answer);
+        // After a successful query, switch to Query Results tab so the user sees the answer immediately
+        setActiveTab('query');
       }
->>>>>>> 07df53a (added ai)
       
       setQuery('');
     } catch (error) {
       console.error('Query failed:', error);
+      try {
+        // Minimal UX feedback so users know something went wrong
+        alert('AI query failed. Please try again.');
+      } catch {}
     } finally {
       setIsProcessing(false);
     }
@@ -228,26 +246,18 @@ export function AIQueryInterface({ data }: AIQueryInterfaceProps) {
   return (
     <Card className="w-full">
       <CardHeader>
-<<<<<<< HEAD
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5" />
-          AI-Powered Business Intelligence
-=======
         <CardTitle className="flex items-center gap-2 justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5" />
             AI-Powered Business Intelligence
           </div>
-          {geminiEnabled ? (
-            <Badge className="bg-green-100 text-green-800 border-green-200" variant="outline">
-              Gemini On
-            </Badge>
-          ) : (
-            <Badge className="bg-gray-100 text-gray-700 border-gray-200" variant="outline">
-              Local Mode
-            </Badge>
-          )}
->>>>>>> 07df53a (added ai)
+          <div className="flex items-center gap-2">
+            {geminiEnabled ? (
+              <Badge className="text-xs">Gemini: On</Badge>
+            ) : (
+              <Badge variant="secondary" className="text-xs">Gemini: Off</Badge>
+            )}
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -384,6 +394,11 @@ export function AIQueryInterface({ data }: AIQueryInterfaceProps) {
                           <Search className="h-4 w-4 text-blue-600" />
                           <span className="font-medium">"{queryResult.query}"</span>
                         </div>
+                        {queryResult.answer && (
+                          <div className="bg-blue-50 border border-blue-100 rounded-md p-3 text-sm text-blue-900">
+                            {queryResult.answer}
+                          </div>
+                        )}
                         
                         {queryResult.response.map((insight, insightIndex) => (
                           <div key={insightIndex} className="bg-gray-50 rounded-lg p-3 space-y-2">
@@ -444,6 +459,11 @@ export function AIQueryInterface({ data }: AIQueryInterfaceProps) {
             {activeTab === 'insights' && (
               <ScrollArea className="h-96">
                 <div className="space-y-4">
+                  {lastAnswer && (
+                    <div className="border rounded-lg p-3 bg-blue-50 border-blue-100 text-blue-900 text-sm">
+                      <span className="font-medium">Answer:</span> {lastAnswer}
+                    </div>
+                  )}
                   {allInsights.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Lightbulb className="h-12 w-12 mx-auto mb-3" />

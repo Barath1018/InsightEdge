@@ -7,14 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { MonthlySalesPerformanceChart } from '@/components/dashboard/monthly-sales-performance-chart';
 import { ProfitTrendAnalysisChart } from '@/components/dashboard/profit-trend-analysis-chart';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SalesByCategoryChart } from '@/components/dashboard/verification-status-chart';
 import { useBusinessData } from '@/contexts/business-data-context';
 import { AIInsightsService } from '@/services/ai-insights-service';
 import { useState, useEffect } from 'react';
 import { TrendingUp, AlertTriangle, BarChart3, Brain, Sparkles, Upload } from 'lucide-react';
 
 export default function AnalyticsPage() {
-  const { businessData, analyzedMetrics, isProcessing: loading } = useBusinessData();
+  const { businessData, analyzedMetrics, isProcessing: loading, setBusinessData } = useBusinessData();
   const [insights, setInsights] = useState<any[]>([]);
   const [anomalies, setAnomalies] = useState<any[]>([]);
   const [forecasts, setForecasts] = useState<any[]>([]);
@@ -26,6 +25,20 @@ export default function AnalyticsPage() {
       generateInsights();
     }
   }, [businessData, loading]);
+
+  // Ensure analytics can hydrate from localStorage if routed directly
+  useEffect(() => {
+    if (!businessData && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('businessData');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          // do not block; setBusinessData also persists
+          setBusinessData(parsed);
+        }
+      } catch {}
+    }
+  }, [businessData, setBusinessData]);
 
   const generateInsights = async () => {
     if (!businessData) return;
@@ -222,46 +235,7 @@ export default function AnalyticsPage() {
               </Card>
             </div>
 
-            {/* Additional Analytics */}
-            <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
-              <Card className="rounded-2xl shadow-sm">
-                <CardHeader>
-                  <CardTitle>Sales By Category</CardTitle>
-                </CardHeader>
-                <CardContent className="pl-2">
-                  <SalesByCategoryChart />
-                </CardContent>
-              </Card>
-              <Card className="rounded-2xl shadow-sm">
-                <CardHeader>
-                  <CardTitle>Data Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Total Records</span>
-                      <span className="font-semibold">{businessData.data.length.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Data Fields</span>
-                      <span className="font-semibold">{businessData.headers.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Numeric Fields</span>
-                      <span className="font-semibold">
-                        {businessData.headers.filter(header => 
-                          businessData.data.some(row => !isNaN(Number(row[header])))
-                        ).length}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">AI Insights</span>
-                      <span className="font-semibold">{insights.length + anomalies.length + forecasts.length}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Removed "Sales By Category" and "Data Summary" cards per request */}
           </div>
         )}
       </main>

@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  context: { params: Promise<{ path: string }> }
 ) {
   try {
-    const path = params.path.join('/');
-    const url = `https://firebasestorage.googleapis.com/v0/b/visionboard-e3o1o.firebasestorage.app/o/${encodeURIComponent(path)}`;
+    const { path } = await context.params;
+    const finalPath = path;
+    const url = `https://firebasestorage.googleapis.com/v0/b/visionboard-e3o1o.firebasestorage.app/o/${encodeURIComponent(finalPath)}`;
     
     // Forward the request to Firebase Storage
     const response = await fetch(url, {

@@ -67,9 +67,10 @@ app.post('/api/ai/ask', async (req, res) => {
     const instruction = `You are an analytics copilot for a business dashboard.
 You are given a user question and an optional dataset (headers + sample rows).
 If the question can be answered from the dataset, use it and be specific; otherwise provide a helpful general answer.
-CRITICAL: Respond ONLY as a single JSON object containing kpis (array), insights (array of strings), and charts (array of chart suggestions). Example shape:
+CRITICAL: Respond ONLY as a single JSON object containing kpis (array), insights (array of strings), and charts (array of chart suggestions).
+Example structure (values are illustrative only; do NOT copy them—compute from the dataset or provide reasonable estimates when needed):
 {
-  "kpis": [{"title":"Total Revenue","value":"$123,456","change":"+5%","trend":"up"}],
+  "kpis": [{"title":"Total Revenue","value":"$<number>","change":"+<percent>%","trend":"up"}],
   "insights": ["Revenue increased in Q3 due to ..."],
   "charts": [{"type":"line","title":"Revenue over time","xAxis":"date","yAxis":["revenue"]}]
 }

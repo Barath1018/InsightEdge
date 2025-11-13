@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# Keep lock file committed
+!.npmrc

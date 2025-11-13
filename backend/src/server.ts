@@ -144,4 +144,5 @@ Do not include markdown fences or extra commentary. Keep responses concise.`;
   }
 });
 
-app.listen(port, () => console.log(`InsightEdge backend listening on https://insightedge.onrender.com`));
+const port = process.env.PORT ? Number(process.env.PORT) : 9003;
+app.listen(port, () => console.log(`InsightEdge backend listening on http://localhost:${port}`));

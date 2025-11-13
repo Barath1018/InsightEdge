@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, User, updateProfile } from 'firebase/auth';
 import { app } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +39,13 @@ export default function SettingsPage() {
     const auth = getAuth(app);
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      // initialize editable fields when auth state arrives
+      if (currentUser) {
+        const f = currentUser.displayName?.split(' ')[0] || '';
+        const l = currentUser.displayName?.split(' ').slice(1).join(' ') || '';
+        setEditFirstName(f);
+        setEditLastName(l);
+      }
       setLoading(false);
       // If user logged in, load persisted setting from Firestore
       (async () => {
@@ -71,6 +78,9 @@ export default function SettingsPage() {
   const firstName = user?.displayName?.split(' ')[0] || '';
   const lastName = user?.displayName?.split(' ').slice(1).join(' ') || '';
 
+  const [editFirstName, setEditFirstName] = useState<string>(firstName);
+  const [editLastName, setEditLastName] = useState<string>(lastName);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   return (
     <>
       <div className="flex-1">
@@ -107,15 +117,15 @@ export default function SettingsPage() {
                   </div>
                 </div>
               ) : (
-                <form className="grid gap-4">
+                <form className="grid gap-4" onSubmit={(e) => { e.preventDefault(); }}>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="first-name">First name</Label>
-                      <Input id="first-name" value={firstName} readOnly />
+                      <Input id="first-name" value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="last-name">Last name</Label>
-                      <Input id="last-name" value={lastName} readOnly />
+                      <Input id="last-name" value={editLastName} onChange={(e) => setEditLastName(e.target.value)} />
                     </div>
                   </div>
                   <div className="grid gap-2">
@@ -131,7 +141,37 @@ export default function SettingsPage() {
               )}
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-              <Button disabled>Save</Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  disabled={isSavingProfile || (!user) || (editFirstName.trim() === firstName && editLastName.trim() === lastName)}
+                  onClick={async () => {
+                    if (!user) return;
+                    setIsSavingProfile(true);
+                    try {
+                      const auth = getAuth(app);
+                      // Update Firebase Auth displayName
+                      await updateProfile(auth.currentUser as any, { displayName: `${editFirstName.trim()} ${editLastName.trim()}`.trim() });
+                      // Optionally persist to Firestore settings (merge)
+                      try {
+                        await FirebaseUserSettingsService.setUserSettings(user.uid, { /* no-op: keep settings shape */ });
+                      } catch {}
+                      toast({ title: 'Profile updated', description: 'Your display name has been updated.' });
+                      // Force local reload of auth state to reflect changes
+                      setTimeout(() => window.location.reload(), 500);
+                    } catch (err) {
+                      console.error('Failed to update profile', err);
+                      toast({ title: 'Update failed', description: 'Could not update your profile. Try again.', variant: 'destructive' });
+                    } finally {
+                      setIsSavingProfile(false);
+                    }
+                  }}
+                >
+                  {isSavingProfile ? 'Saving...' : 'Save'}
+                </Button>
+                <Button variant="secondary" onClick={() => { setEditFirstName(firstName); setEditLastName(lastName); }}>
+                  Cancel
+                </Button>
+              </div>
             </CardFooter>
           </Card>
           <Card>

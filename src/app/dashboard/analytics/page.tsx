@@ -9,6 +9,7 @@ import { ProfitTrendAnalysisChart } from '@/components/dashboard/profit-trend-an
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBusinessData } from '@/contexts/business-data-context';
 import { AIInsightsService } from '@/services/ai-insights-service';
+import normalizeGeminiResponse from '@/lib/ai-response-adapter';
 import { useState, useEffect } from 'react';
 import { TrendingUp, AlertTriangle, BarChart3, Brain, Sparkles, Upload } from 'lucide-react';
 
@@ -18,13 +19,14 @@ export default function AnalyticsPage() {
   const [anomalies, setAnomalies] = useState<any[]>([]);
   const [forecasts, setForecasts] = useState<any[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
 
-  // Generate AI insights when business data is available
+  // Generate AI insights when business data is available (don't block on global loading)
   useEffect(() => {
-    if (businessData && !loading) {
+    if (businessData) {
       generateInsights();
     }
-  }, [businessData, loading]);
+  }, [businessData]);
 
   // Ensure analytics can hydrate from localStorage if routed directly
   useEffect(() => {
@@ -41,9 +43,20 @@ export default function AnalyticsPage() {
   }, [businessData, setBusinessData]);
 
   const generateInsights = async () => {
-    if (!businessData) return;
-    
+    if (!businessData || !Array.isArray(businessData.data) || businessData.data.length === 0) {
+      console.warn('generateInsights called but no valid business data is available');
+      // Ensure UI state is consistent
+      setIsAnalyzing(false);
+      setInsights([]);
+      setAnomalies([]);
+      setForecasts([]);
+      return;
+    }
+
+    console.debug('Starting AI insights generation for', businessData.data.length, 'rows');
+
     setIsAnalyzing(true);
+    setAnalysisMessage('Starting AI analysis...');
     try {
       const [detectedAnomalies, correlations, generatedForecasts] = await Promise.all([
         AIInsightsService.detectAnomalies(businessData.data),
@@ -51,11 +64,51 @@ export default function AnalyticsPage() {
         AIInsightsService.generateForecasts(businessData.data)
       ]);
       
+      // Try centralized AI endpoint for additional insights (Gemini preferred with server fallback)
+      let aiInsightsAsObjects: any[] = [];
+      try {
+        const aiRes = await fetch('/api/ai/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: 'Provide 3 concise insights and any notable anomalies from this dataset.',
+            dataset: {
+              headers: businessData.headers,
+              data: businessData.data.slice(0, 200),
+            },
+          }),
+        });
+        if (aiRes.ok) {
+          const raw = await aiRes.json();
+          const norm = normalizeGeminiResponse(raw);
+          if (Array.isArray(norm.insights) && norm.insights.length > 0) {
+            aiInsightsAsObjects = norm.insights.slice(0, 3).map((text, idx) => ({
+              type: 'trend',
+              title: `AI Insight ${idx + 1}`,
+              description: String(text),
+              confidence: 90,
+              impact: 'medium',
+              category: 'operations',
+              data: [],
+              visualization: 'metric',
+              actionable: true,
+            }));
+          }
+        }
+      } catch (e) {
+        console.warn('Central AI analysis failed (non-blocking):', e);
+      }
+
+      const combinedInsights = [...aiInsightsAsObjects, ...correlations];
       setAnomalies(detectedAnomalies);
-      setInsights(correlations);
+      setInsights(combinedInsights);
       setForecasts(generatedForecasts);
+      setAnalysisMessage(
+        `Analysis complete — found ${combinedInsights.length} insights, ${detectedAnomalies.length} anomalies, ${generatedForecasts.length} forecasts.`
+      );
     } catch (error) {
       console.error('Failed to generate insights:', error);
+      setAnalysisMessage('Failed to generate insights — check console for details.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -70,7 +123,7 @@ export default function AnalyticsPage() {
         </p>
       </div>
       <main className="flex flex-1 flex-col gap-4 pt-4 sm:px-6 sm:py-0 md:gap-8">
-        {loading || !businessData ? (
+        {!businessData ? (
           <div className="text-center py-16">
             <Upload className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -112,6 +165,9 @@ export default function AnalyticsPage() {
                 )}
               </Button>
             </div>
+            {analysisMessage ? (
+              <div className="mt-3 text-sm text-muted-foreground">{analysisMessage}</div>
+            ) : null}
 
             {/* Charts based on uploaded data */}
             <div className="grid gap-4 md:gap-8 lg:grid-cols-2">

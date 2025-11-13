@@ -4,6 +4,12 @@ import normalizeGeminiResponse from '@/lib/ai-response-adapter';
 import { AIInsightsService } from '@/services/ai-insights-service';
 import { DataAnalysisService } from '@/services/data-analysis-service';
 
+const REMOTE_BACKEND_URL =
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.BACKEND_BASE_URL ||
+  undefined;
+
 const MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 const DEFAULT_MODEL = 'gemini-1.5-flash';
 const API_KEY = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -25,6 +31,30 @@ const ResponseSchema = z.object({
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as AskBody;
   const { query, dataset } = body;
+
+  if (REMOTE_BACKEND_URL) {
+    try {
+      const target = new URL('/api/ai/ask', REMOTE_BACKEND_URL).toString();
+      const proxyRes = await fetch(target, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (proxyRes.ok) {
+        const json = await proxyRes.json();
+        try {
+          const parsed = ResponseSchema.parse(json);
+          return NextResponse.json(parsed);
+        } catch (proxyParseErr: any) {
+          console.warn('Remote backend returned invalid shape, falling back to local logic:', proxyParseErr?.message || proxyParseErr);
+        }
+      } else {
+        console.warn(`Remote backend ${target} responded with ${proxyRes.status}, falling back to local logic`);
+      }
+    } catch (proxyErr: any) {
+      console.warn('Failed to reach remote backend, falling back to local logic:', proxyErr?.message || proxyErr);
+    }
+  }
   // Build a capped dataset sample (same logic used when calling Gemini)
   const limitedData = dataset
     ? {
